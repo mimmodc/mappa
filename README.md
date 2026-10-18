@@ -163,6 +163,22 @@ Le attribuzioni sono riportate anche nella barra in basso della pagina.
   raggiungibile; le richieste vengono ripetute alcune volte e l'app mostra lo
   stato senza bloccare la mappa.
 
+## Sicurezza e privacy
+
+- **Nessun dato personale**: l'app gira interamente nel browser e non raccoglie
+  né invia dati dell'utente; l'unica informazione scambiata sono le coordinate
+  delle aree richieste ai servizi pubblici (Catasto, OnData) e i tile di mappa.
+- **Integrità degli script (SRI)**: Leaflet (CSS e JS) e GeographicLib sono
+  caricati dal CDN con hash `integrity` (SHA-384): se il contenuto servito non
+  corrisponde all'hash atteso, il browser lo **rifiuta**. DuckDB-WASM è
+  importato dinamicamente (l'SRI non si applica agli import ESM); la sua
+  versione è fissata esattamente a `1.29.0`.
+- **Proxy ristretto**: il Worker CORS accetta solo richieste provenienti dalle
+  origini dell'app (`ALLOWED_ORIGINS`) e inoltra solo verso il WFS catastale
+  (`ALLOWED_HOSTS`), quindi non può essere usato come proxy aperto. Per una
+  protezione maggiore è consigliabile attivare il *Rate limiting* dal pannello
+  Cloudflare.
+
 ## Struttura del progetto
 
 ```

@@ -6,8 +6,18 @@
 //
 //     https://<tuo-worker>.workers.dev/?url=<URL del WFS codificato>
 //
-// Sicurezza: vengono inoltrate SOLO le richieste verso gli host elencati in
-// ALLOWED_HOSTS. Il Worker non conserva nulla.
+// Sicurezza:
+//   * vengono inoltrate SOLO le richieste verso gli host elencati in
+//     ALLOWED_HOSTS;
+//   * vengono accettate SOLO le richieste provenienti dalle origini elencate in
+//     ALLOWED_ORIGINS (le pagine dell'app): senza questo controllo chiunque
+//     potrebbe usare il Worker come proxy aperto verso il WFS.
+// Il Worker non conserva nulla.
+//
+// Nota: il controllo sull'origine (Origin/Referer) è un filtro lato browser e
+// scoraggia l'uso improprio, ma può essere aggirato da client che falsificano
+// gli header. Per una protezione più forte conviene attivare anche il "Rate
+// limiting" dal pannello Cloudflare.
 //
 // Come si pubblica: vedi proxy/README.md (5 minuti, piano gratuito).
 // ==========================================================================
@@ -15,6 +25,32 @@
 const ALLOWED_HOSTS = [
   'wfs.cartografia.agenziaentrate.gov.it',
 ];
+
+// Origini autorizzate a usare il proxy (le pagine dell'app). Aggiungere qui
+// altri domini se l'app viene pubblicata altrove.
+const ALLOWED_ORIGINS = [
+  /^https:\/\/mimmodc\.github\.io$/,
+  /^http:\/\/localhost(:\d+)?$/,
+  /^http:\/\/127\.0\.0\.1(:\d+)?$/,
+  /^http:\/\/\[::1\](:\d+)?$/,
+];
+
+/** True se la richiesta proviene da un'origine autorizzata (Origin o Referer). */
+function originAllowed(request) {
+  const origin = request.headers.get('Origin');
+  if (origin !== null) {
+    return ALLOWED_ORIGINS.some((re) => re.test(origin));
+  }
+  const referer = request.headers.get('Referer');
+  if (referer) {
+    try {
+      return ALLOWED_ORIGINS.some((re) => re.test(new URL(referer).origin));
+    } catch (_) {
+      return false;
+    }
+  }
+  return false;
+}
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -28,10 +64,17 @@ export default {
     const requestUrl = new URL(request.url);
 
     if (request.method === 'OPTIONS') {
+      if (!originAllowed(request)) {
+        return jsonError(403, 'Origine non autorizzata.');
+      }
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return jsonError(405, 'Metodo non consentito: usare GET.');
+    }
+    if (!originAllowed(request)) {
+      return jsonError(403, 'Origine non autorizzata: il proxy è riservato '
+        + "alle pagine dell'app.");
     }
 
     const target = requestUrl.searchParams.get('url');

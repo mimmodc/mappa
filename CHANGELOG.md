@@ -3,6 +3,19 @@
 Tutte le modifiche rilevanti di questo progetto sono annotate in questo file.
 Il formato segue il principio di [Keep a Changelog](https://keepachangelog.com/it/1.1.0/).
 
+## [2.0.5] - 2026-10-18
+
+### Sicurezza
+- **SRI (Subresource Integrity)** su Leaflet (CSS e JS) e GeographicLib caricati
+  dal CDN: il browser rifiuta la risorsa se il contenuto non corrisponde
+  all'hash `sha384` atteso.
+- **Worker CORS ristretto per origine** (`ALLOWED_ORIGINS`): accetta solo
+  richieste provenienti dalle pagine dell'app, quindi non è più utilizzabile
+  come proxy aperto. Worker aggiornato e ripubblicato su Cloudflare.
+- Documentate la limitazione dell'SRI per DuckDB-WASM (import dinamico ESM,
+  versione fissata a `1.29.0`) e la possibilità di attivare il Rate limiting
+  Cloudflare.
+
 ## [2.0.4] - 2026-10-18
 
 ### Modificato

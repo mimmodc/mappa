@@ -114,6 +114,27 @@ successive ti basterà aprire `http://localhost:8123/`.
 
 ---
 
+## Sicurezza del Worker
+
+Il Worker applica due filtri:
+
+- **`ALLOWED_HOSTS`** — può inoltrare richieste **solo** verso gli host elencati
+  (il WFS dell'Agenzia delle Entrate).
+- **`ALLOWED_ORIGINS`** — accetta richieste **solo** dalle pagine dell'app
+  (`https://mimmodc.github.io`, più `localhost`/`127.0.0.1`/`[::1]` per lo
+  sviluppo locale). Le richieste da altre origini ricevono `403`, quindi il
+  Worker non può essere usato come proxy aperto.
+
+Se pubblichi l'app su un altro dominio, aggiungilo a `ALLOWED_ORIGINS` in
+`cloudflare-worker.js` e ripubblica con `npx wrangler@3 deploy`.
+
+> Il controllo sull'origine scoraggia l'uso improprio ma può essere aggirato da
+> client che falsificano gli header. Per una protezione più forte attiva il
+> **Rate limiting** dal pannello Cloudflare (Workers & Pages → il tuo Worker →
+> Settings).
+
+---
+
 ## Perché non un proxy pubblico?
 
 Sono stati provati diversi proxy pubblici gratuiti: rispondono con errori
