@@ -3,6 +3,21 @@
 Tutte le modifiche rilevanti di questo progetto sono annotate in questo file.
 Il formato segue il principio di [Keep a Changelog](https://keepachangelog.com/it/1.1.0/).
 
+## [2.0.3] - 2026-10-18
+
+### Corretto
+- **Area delle particelle con «buchi» (`gml:interior`)**: la versione web usava
+  solo l'anello esterno e ne sovrastimava l'area. Ora l'area degli anelli
+  interni viene sottratta (`geometryMeasure`), come nella versione desktop.
+- **Validazione del nome del file regionale** in `web/catasto.js`: il valore
+  letto dall'indice OnData viene verificato (solo `[A-Za-z0-9_-]+.parquet`)
+  prima di essere usato nella query, per difendersi da SQL injection — come già
+  avveniva nella versione desktop.
+- Refuso in `web/catasto.js` (due istruzioni sulla stessa riga).
+
+### Aggiunto
+- Test di regressione per `sanitizeRegionFile` in `tests/all.test.mjs`.
+
 ## [2.0.2] - 2026-10-18
 
 ### Modificato

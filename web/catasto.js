@@ -14,7 +14,22 @@ import { parseInspireId } from './gml.js';
 const DUCKDB_VERSION = '1.29.0';
 const DUCKDB_URL = `https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@${DUCKDB_VERSION}/+esm`;
 
-export class CatastoError extends Error {}let duckdbPromise = null;
+export class CatastoError extends Error {}
+
+/**
+ * Valida il nome del file parquet regionale (difesa da SQL injection).
+ * Stesso controllo dell'app desktop: sono ammessi solo lettere, cifre,
+ * underscore e trattini, con estensione `.parquet`.
+ */
+export function sanitizeRegionFile(name) {
+  const value = String(name ?? '');
+  if (!/^[A-Za-z0-9_-]+\.parquet$/.test(value)) {
+    throw new CatastoError(`Nome file regionale non valido: ${JSON.stringify(name)}`);
+  }
+  return value;
+}
+
+let duckdbPromise = null;
 async function duckdbModule() {
   if (!duckdbPromise) duckdbPromise = import(DUCKDB_URL);
   return duckdbPromise;
@@ -130,12 +145,13 @@ export class CatastoService {
     if (!regionFile) {
       throw new CatastoError("Comune non valido: indicare codice o nome.");
     }
+    const regionFileName = sanitizeRegionFile(regionFile);
     const foglioNorm = String(foglio ?? '').trim();
     const particellaNorm = String(particella ?? '').trim();
     if (!foglioNorm || !particellaNorm) {
       throw new CatastoError('Specificare sia il foglio sia la particella.');
     }
-    const url = CONFIG.parcelsUrl.replace('{file}', regionFile);
+    const url = CONFIG.parcelsUrl.replace('{file}', regionFileName);
     const sql = `SELECT INSPIREID_LOCALID, comune, foglio, particella, x, y
                  FROM '${url}'
                  WHERE comune = ?

@@ -132,6 +132,23 @@ if (!DOMParserImpl) {
 }
 
 // --------------------------------------------------------------------------
+console.log('\n== Validazione del nome file regionale (catasto.js) ==');
+{
+  const { sanitizeRegionFile } = await import('../web/catasto.js');
+  const lancia = (fn) => { try { fn(); return false; } catch (_) { return true; } };
+  ok('nome file regionale valido accettato',
+     sanitizeRegionFile('03_Lombardia.parquet') === '03_Lombardia.parquet');
+  ok('sottocartella rifiutata (path traversal)',
+     lancia(() => sanitizeRegionFile('../etc/passwd.parquet')));
+  ok('tentativo di SQL injection rifiutato',
+     lancia(() => sanitizeRegionFile("x.parquet' OR 1=1--")));
+  ok('estensione diversa da .parquet rifiutata',
+     lancia(() => sanitizeRegionFile('dati.csv')));
+  ok('stringa vuota rifiutata',
+     lancia(() => sanitizeRegionFile('')));
+}
+
+// --------------------------------------------------------------------------
 // Il WFS dell'Agenzia delle Entrate restituisce a volte una collezione vuota
 // e — cosa peggiore — una cache davanti al servizio la ripete identica per lo
 // stesso URL. Qui si riproduce il comportamento con una fetch finta: la prima

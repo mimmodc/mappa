@@ -6,7 +6,7 @@
 // ==========================================================================
 
 import { CONFIG, COLORS, loadProxy, saveProxy, proxyFromQuery } from './config.js';
-import { ringAreaPerimeter, ringCentroid, bboxOf, fmtNum } from './geo.js';
+import { geometryMeasure, ringCentroid, bboxOf, fmtNum } from './geo.js';
 import { WfsClient } from './wfs.js';
 import { CatastoService } from './catasto.js';
 
@@ -382,7 +382,10 @@ function explainWfsError(exc) {
 // --------------------------------------------------------------------------
 function applyField(field, reason) {
   state.field = field;
-  const { area, perimeter } = ringAreaPerimeter(field.ring);
+  // L'area tiene conto degli eventuali "buchi" (gml:interior), come nell'app
+  // desktop: sottrae l'area degli anelli interni invece di usare il solo
+  // anello esterno (che sovrastimerebbe la particella).
+  const { area, perimeter } = geometryMeasure(field.ring, field.interiors || []);
   const centroid = ringCentroid(field.ring);
   field.area = area;
   field.perimeter = perimeter;
