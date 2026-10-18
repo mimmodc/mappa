@@ -1,0 +1,14 @@
+# Configurazione per pubblicare il proxy CORS su Cloudflare Workers.
+#
+#   cd proxy
+#   npx wrangler@3 login     # si apre il browser: premi «Allow»
+#   npx wrangler@3 deploy
+#
+# Al termine il comando stampa l'indirizzo del Worker, del tipo
+#   https://mappa-proxy.NOMEAACCOUNT.workers.dev/?url={url}
+# da inserire nella sezione 5 dell'app (o in web/config.js).
+
+name = "mappa-proxy"
+main = "cloudflare-worker.js"
+compatibility_date = "2025-01-01"
+workers_dev = true

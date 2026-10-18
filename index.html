@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mappa Campi Agricoli v2.0 &mdash; Catasto + OpenStreetMap</title>
+<meta name="description" content="Mappa web per individuare e misurare i campi agricoli usando il catasto italiano (Agenzia delle Entrate) e OpenStreetMap.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>&#127806;</text></svg>">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="web/app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">&#127806;</span>
+    <div>
+      <h1>Mappa Campi Agricoli <span class="ver">v2.0</span></h1>
+      <p>Individua e misura i campi sul catasto italiano, con mappa OpenStreetMap</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <button id="btn-help" class="ghost" type="button">?</button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <aside class="panel">
+
+    <section class="card">
+      <h2><span class="n">1</span> Cerca una particella catastale</h2>
+      <label for="in-comune">Comune (nome o codice)</label>
+      <input id="in-comune" type="text" list="dl-comuni" placeholder="es. Pavia oppure G388" autocomplete="off">
+      <datalist id="dl-comuni"></datalist>
+      <div class="row">
+        <div>
+          <label for="in-foglio">Foglio</label>
+          <input id="in-foglio" type="text" inputmode="numeric" placeholder="es. 1">
+        </div>
+        <div>
+          <label for="in-particella">Particella</label>
+          <input id="in-particella" type="text" placeholder="es. 1">
+        </div>
+      </div>
+      <button id="btn-cerca" class="primary" type="button">Cerca</button>
+      <div id="out-risultati" class="risultati" hidden>
+        <label for="list-risultati">Risultati (clicca per selezionare)</label>
+        <select id="list-risultati" size="6"></select>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">2</span> Modalit&agrave; sulla mappa</h2>
+      <div class="modes">
+        <label><input type="radio" name="mode" value="move" checked> Sposta</label>
+        <label><input type="radio" name="mode" value="select"> Seleziona campo</label>
+        <label><input type="radio" name="mode" value="draw"> Disegna campo</label>
+      </div>
+      <div id="draw-tools" class="draw-tools" hidden>
+        <p class="hint">Clicca sulla mappa per aggiungere i vertici del campo.</p>
+        <div class="row">
+          <button id="btn-chiudi" class="primary" type="button">Chiudi poligono</button>
+          <button id="btn-annulla-punto" type="button">Annulla punto</button>
+        </div>
+      </div>
+      <div class="row">
+        <button id="btn-zoom-campo" type="button">Inquadra campo</button>
+        <button id="btn-cancella" type="button">Cancella campo</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">3</span> Vista</h2>
+      <label for="sel-basemap">Sfondo</label>
+      <select id="sel-basemap"></select>
+      <label class="check">
+        <input id="chk-particelle" type="checkbox" checked>
+        Mostra i confini delle particelle catastali
+      </label>
+      <div class="row">
+        <button id="btn-italia" type="button">Tutta l'Italia</button>
+      </div>
+      <p class="hint">
+        I confini delle particelle restano sempre visibili attorno al campo
+        selezionato; la vista generale si aggiorna a partire dallo zoom
+        <b>16</b>. Se non compaiono, imposta il proxy nella sezione
+        <a href="#card-impostazioni">5</a>.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">4</span> Dettagli del campo</h2>
+      <dl id="dettagli" class="dettagli">
+        <dt>Stato</dt><dd id="d-stato">Nessun campo selezionato.</dd>
+        <dt>Area</dt><dd id="d-area">&ndash;</dd>
+        <dt>Perimetro</dt><dd id="d-perimetro">&ndash;</dd>
+        <dt>Centroide</dt><dd id="d-centroide">&ndash;</dd>
+        <dt>Particella</dt><dd id="d-particella">&ndash;</dd>
+      </dl>
+      <div class="row">
+        <button id="btn-geojson" type="button" disabled>Salva GeoJSON</button>
+        <button id="btn-dettagli" type="button" disabled>Copia dettagli</button>
+      </div>
+    </section>
+
+    <section class="card" id="card-impostazioni">
+      <h2><span class="n">5</span> Impostazioni (proxy WFS)</h2>
+      <p class="hint">
+        Il WFS dell'Agenzia delle Entrate non invia gli header <code>CORS</code>:
+        per leggere le geometrie serve un piccolo proxy. Vedi
+        <code>proxy/README.md</code> per attivarlo gratis in pochi minuti.
+      </p>
+      <label for="in-proxy">URL del proxy &mdash; deve contenere <code>{url}</code></label>
+      <input id="in-proxy" type="text" placeholder="https://mappa-proxy.NOMUtente.workers.dev/?url={url}">
+      <div class="row">
+        <button id="btn-salva-proxy" class="primary" type="button">Salva</button>
+        <button id="btn-test-proxy" type="button">Verifica</button>
+      </div>
+    </section>
+
+  </aside>
+
+  <main class="map-wrap">
+    <div id="map"></div>
+    <button id="btn-toggle-panel" class="panel-toggle" type="button" title="Mostra/nascondi il pannello">&#9776;</button>
+  </main>
+
+</div>
+
+<footer class="statusbar">
+  <span id="status">Pronto.</span>
+  <span id="zoom">zoom &ndash;</span>
+</footer>
+
+<div id="modal" class="modal" hidden>
+  <div class="modal-box">
+    <button id="modal-close" class="modal-close" type="button">&times;</button>
+    <h2>Come si usa</h2>
+    <ol>
+      <li><b>Cerca</b> una particella (comune + foglio + particella) e scegli il
+          risultato: la mappa si sposta sul campo.</li>
+      <li>Oppure scegli la modalit&agrave; <b>Seleziona campo</b> e clicca su un
+          campo della mappa.</li>
+      <li>Oppure <b>Disegna campo</b> per tracciare il perimetro a mano.</li>
+      <li>Area, perimetro e centroide sono calcolati sull'ellissoide WGS84
+          (stesso algoritmo dell'app desktop) e puoi esportare il campo come
+          <b>GeoJSON</b>.</li>
+    </ol>
+    <h2>Dati</h2>
+    <ul>
+      <li>Mappa: OpenStreetMap e altri sfondi (Esri, OpenTopoMap, HOT).</li>
+      <li>Confini catastali: Agenzia delle Entrate (WFS, CC-BY 4.0).</li>
+      <li>Ricerca particelle: indice OnData (CC-BY 4.0).</li>
+    </ul>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/geographiclib-geodesic@2.2.0/geographiclib-geodesic.min.js"></script>
+<script type="module" src="web/app.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,18 @@
+# --- Node (dipendenza solo per i test) ------------------------------------
+node_modules/
+package-lock.json
+package.json
+
+# --- Cache del proxy / Cloudflare -----------------------------------------
+.cache/
+.wrangler/
+
+# --- File esportati dall'app (dati locali, non versionare) ----------------
+*.geojson
+
+# --- Editor / Sistema operativo -------------------------------------------
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
