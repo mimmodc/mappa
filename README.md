@@ -77,11 +77,16 @@ Cloudflare del progetto (piano gratuito):
 https://mappa-proxy.mimmodc.workers.dev/?url={url}
 ```
 
-Non serve quindi inserire nulla. Per usare un proxy diverso, basta scriverlo
-nella sezione **5. Impostazioni (proxy WFS)** dell'app (deve contenere il
-segnaposto `{url}`) e premere **Salva**; il pulsante **Verifica** controlla che
-risponda. La scelta viene memorizzata nel browser. L'indirizzo deve essere in
-**https://** (la pagina pubblicata è in HTTPS).
+Non serve quindi inserire nulla nell'app. Per usare un proxy diverso si modifica
+`CONFIG.wfsProxy` in `web/config.js`, oppure si apre la pagina con il parametro
+`?proxy=...` (deve contenere il segnaposto `{url}`), ad esempio:
+
+```
+https://mimmodc.github.io/mappa/?proxy=https%3A%2F%2Fmappa-proxy.TUONOME.workers.dev%2F%3Furl%3D%7Burl%7D
+```
+
+La scelta viene memorizzata nel browser. L'indirizzo deve essere in **https://**
+(la pagina pubblicata è in HTTPS).
 
 Per pubblicare un proxy proprio — su un altro account Cloudflare, o con Deno
 Deploy/Vercel/Netlify — tutto il necessario è in

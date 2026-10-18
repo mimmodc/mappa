@@ -84,8 +84,7 @@
       <p class="hint">
         I confini delle particelle restano sempre visibili attorno al campo
         selezionato; la vista generale si aggiorna a partire dallo zoom
-        <b>16</b>. Se non compaiono, imposta il proxy nella sezione
-        <a href="#card-impostazioni">5</a>.
+        <b>16</b>.
       </p>
     </section>
 
@@ -101,21 +100,6 @@
       <div class="row">
         <button id="btn-geojson" type="button" disabled>Salva GeoJSON</button>
         <button id="btn-dettagli" type="button" disabled>Copia dettagli</button>
-      </div>
-    </section>
-
-    <section class="card" id="card-impostazioni">
-      <h2><span class="n">5</span> Impostazioni (proxy WFS)</h2>
-      <p class="hint">
-        Il WFS dell'Agenzia delle Entrate non invia gli header <code>CORS</code>:
-        per leggere le geometrie serve un piccolo proxy. Vedi
-        <code>proxy/README.md</code> per attivarlo gratis in pochi minuti.
-      </p>
-      <label for="in-proxy">URL del proxy &mdash; deve contenere <code>{url}</code></label>
-      <input id="in-proxy" type="text" placeholder="https://mappa-proxy.NOMUtente.workers.dev/?url={url}">
-      <div class="row">
-        <button id="btn-salva-proxy" class="primary" type="button">Salva</button>
-        <button id="btn-test-proxy" type="button">Verifica</button>
       </div>
     </section>
 

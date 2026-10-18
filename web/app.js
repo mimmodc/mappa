@@ -5,7 +5,7 @@
 // overlay delle particelle (gruppi "campo" e "vista"), dettagli, esportazione.
 // ==========================================================================
 
-import { CONFIG, COLORS, loadProxy, saveProxy, proxyFromQuery } from './config.js';
+import { CONFIG, COLORS, loadProxy, proxyFromQuery } from './config.js';
 import { geometryMeasure, ringCentroid, bboxOf, fmtNum } from './geo.js';
 import { WfsClient } from './wfs.js';
 import { CatastoService } from './catasto.js';
@@ -53,7 +53,6 @@ function busy(on) {
 // --------------------------------------------------------------------------
 function init() {
   proxyFromQuery();                 // ?proxy=... ha la precedenza (comodo per le prove)
-  $('in-proxy').value = loadProxy();
   wfs = new WfsClient(() => loadProxy());
 
   initMap();
@@ -134,12 +133,6 @@ function initControls() {
   $('btn-geojson').addEventListener('click', exportGeoJson);
   $('btn-dettagli').addEventListener('click', copyDetails);
 
-  $('btn-salva-proxy').addEventListener('click', () => {
-    saveProxy($('in-proxy').value.trim());
-    setStatus('Proxy salvato. Prova a selezionare un campo.');
-  });
-  $('btn-test-proxy').addEventListener('click', testProxy);
-
   $('btn-help').addEventListener('click', () => { $('modal').hidden = false; });
   $('modal-close').addEventListener('click', () => { $('modal').hidden = true; });
   $('modal').addEventListener('click', (e) => {
@@ -164,9 +157,9 @@ async function initCatasto() {
       // Senza proxy l'app puo' cercare le particelle ma non leggerne i
       // confini: meglio dirlo subito, invece di attendere la richiesta al WFS
       // (che fallisce dopo alcuni secondi).
-      setStatus(`Pronto. ${state.catasto.comuni.length} comuni disponibili, ma senza `
-        + 'proxy CORS (sezione 5) i confini delle particelle non possono essere '
-        + 'letti: vedi proxy/README.md.', true);
+      setStatus(`Pronto. ${state.catasto.comuni.length} comuni disponibili, ma il `
+        + 'servizio dei confini catastali non è configurato: le particelle '
+        + 'non potranno essere visualizzate.', true);
     }
   } catch (exc) {
     setStatus(`Ricerca per attributi non disponibile: ${exc.message || exc}`, true);
@@ -371,10 +364,11 @@ async function loadParcelGeometry(localId, lat, lon) {
 function explainWfsError(exc) {
   const message = exc && exc.message ? exc.message : String(exc);
   if (!loadProxy()) {
-    return `WFS non raggiungibile senza proxy CORS. Apri la sezione 5 e inserisci `
-      + `l'URL del proxy (vedi proxy/README.md). Dettaglio: ${message}`;
+    return `Servizio dei confini catastali non configurato. `
+      + `Dettaglio: ${message}`;
   }
-  return `WFS non raggiungibile. Controlla il proxy CORS. Dettaglio: ${message}`;
+  return `Il servizio dei confini catastali è momentaneamente non raggiungibile: `
+    + `riprova tra qualche istante. Dettaglio: ${message}`;
 }
 
 // --------------------------------------------------------------------------
@@ -650,27 +644,6 @@ function copyDetails() {
   navigator.clipboard?.writeText(text)
     .then(() => setStatus('Dettagli copiati negli appunti.'))
     .catch(() => setStatus('Impossibile copiare: selezione manuale.', true));
-}
-
-// --------------------------------------------------------------------------
-// Verifica del proxy
-// --------------------------------------------------------------------------
-async function testProxy() {
-  saveProxy($('in-proxy').value.trim());
-  busy(true);
-  setStatus('Verifica del proxy WFS in corso...');
-  try {
-    const parcels = await wfs.fetchParcels(45.1855, 9.1600, 0.0008, 5, 1);
-    if (parcels.length) {
-      setStatus(`Proxy funzionante: ${parcels.length} particelle di prova ricevute.`);
-    } else {
-      setStatus('Il proxy risponde ma non sono arrivate particelle: prova comunque sul campo.', true);
-    }
-  } catch (exc) {
-    setStatus(explainWfsError(exc), true);
-  } finally {
-    busy(false);
-  }
 }
 
 // --------------------------------------------------------------------------

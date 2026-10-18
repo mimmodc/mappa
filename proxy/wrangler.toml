@@ -6,7 +6,7 @@
 #
 # Al termine il comando stampa l'indirizzo del Worker, del tipo
 #   https://mappa-proxy.NOMEAACCOUNT.workers.dev/?url={url}
-# da inserire nella sezione 5 dell'app (o in web/config.js).
+# da inserire in web/config.js (CONFIG.wfsProxy).
 
 name = "mappa-proxy"
 main = "cloudflare-worker.js"

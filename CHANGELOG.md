@@ -3,6 +3,17 @@
 Tutte le modifiche rilevanti di questo progetto sono annotate in questo file.
 Il formato segue il principio di [Keep a Changelog](https://keepachangelog.com/it/1.1.0/).
 
+## [2.0.4] - 2026-10-18
+
+### Modificato
+- **Rimossa dall'interfaccia la sezione 5 «Impostazioni (proxy WFS)»**: la
+  configurazione del proxy non è più mostrata agli utenti. Il funzionamento
+  della web resta invariato: il proxy predefinito è in `web/config.js`
+  (`CONFIG.wfsProxy`) e si può indicarne un altro con il parametro `?proxy=...`.
+- Messaggi di stato e di errore relativi ai confini catastali semplificati (non
+  rimandano più a una sezione di impostazioni non più presente).
+- `README.md` e `proxy/README.md` aggiornati di conseguenza.
+
 ## [2.0.3] - 2026-10-18
 
 ### Corretto

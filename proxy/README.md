@@ -37,14 +37,22 @@ Serve un account Cloudflare gratuito (nessuna carta di credito).
    `cloudflare-worker.js`. Premi **Deploy**.
 4. Copia l'indirizzo del Worker, del tipo:
    `https://mappa-proxy.TUONOME.workers.dev`
-5. Nell'app, sezione **Impostazioni (proxy WFS)**, incolla:
+5. Indica il proxy all'app web, impostando `CONFIG.wfsProxy` in
+   `web/config.js`:
 
    ```
    https://mappa-proxy.TUONOME.workers.dev/?url={url}
    ```
 
    Le graffe `{url}` sono obbligatorie: l'app sostituirà quell'ultima parte
-   con l'indirizzo del WFS codificato. Premi **Salva**, poi **Verifica**.
+   con l'indirizzo del WFS codificato.
+
+   In alternativa, senza modificare i file, si può aprire la pagina passando il
+   proxy come parametro, ad esempio:
+
+   ```
+   https://mimmodc.github.io/mappa/?proxy=https%3A%2F%2Fmappa-proxy.TUONOME.workers.dev%2F%3Furl%3D%7Burl%7D
+   ```
 
    L'indirizzo del proxy deve essere **https://**: la pagina pubblicata su
    GitHub Pages è in HTTPS e il browser bloccherebbe una richiesta in HTTP
