@@ -116,7 +116,7 @@ successive ti basterà aprire `http://localhost:8123/`.
 
 ## Sicurezza del Worker
 
-Il Worker applica due filtri:
+Il Worker applica tre filtri:
 
 - **`ALLOWED_HOSTS`** — può inoltrare richieste **solo** verso gli host elencati
   (il WFS dell'Agenzia delle Entrate).
@@ -124,14 +124,30 @@ Il Worker applica due filtri:
   (`https://mimmodc.github.io`, più `localhost`/`127.0.0.1`/`[::1]` per lo
   sviluppo locale). Le richieste da altre origini ricevono `403`, quindi il
   Worker non può essere usato come proxy aperto.
+- **`RATE_LIMIT_MAX`** — massimo **120 richieste al minuto** per visitatore
+  (indirizzo IP). Oltre il limite risponde `429` con `Retry-After`.
 
 Se pubblichi l'app su un altro dominio, aggiungilo a `ALLOWED_ORIGINS` in
 `cloudflare-worker.js` e ripubblica con `npx wrangler@3 deploy`.
 
+Per cambiare il limite di velocità modifica `RATE_LIMIT_MAX` (e, se serve,
+`RATE_LIMIT_WINDOW_MS`) in `cloudflare-worker.js`, poi ripubblica.
+**Attenzione**: una singola vista della mappa costa ~12 richieste (fino a ~36
+coi ritentativi), quindi un limite troppo basso bloccherebbe l'uso normale.
+
+Il contatore usa la Cache API di Cloudflare: non serve alcun servizio o binding
+aggiuntivo. **Il conteggio è per data center**: Cloudflare serve le richieste
+dallo stesso visitatore da più data center (nei test: `MXP` e `FCO`), e ogni
+data center ha la propria cache. Il limite effettivo può quindi risultare più
+alto del valore nominale (grossomodo `RATE_LIMIT_MAX` × numero di data center
+coinvolti). Il contatore ferma comunque flood e cicli accidentali; per un limite
+esatto e globale servirebbero i *Durable Objects*. In caso di errore della
+cache il Worker **non** blocca mai le richieste.
+
 > Il controllo sull'origine scoraggia l'uso improprio ma può essere aggirato da
-> client che falsificano gli header. Per una protezione più forte attiva il
-> **Rate limiting** dal pannello Cloudflare (Workers & Pages → il tuo Worker →
-> Settings).
+> client che falsificano gli header; il limite di velocità agisce comunque per
+> indirizzo IP. Per una protezione ancora più forte puoi attivare il **Rate
+> limiting** dal pannello Cloudflare (Workers & Pages → il tuo Worker).
 
 ---
 

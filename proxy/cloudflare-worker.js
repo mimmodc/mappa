@@ -11,13 +11,15 @@
 //     ALLOWED_HOSTS;
 //   * vengono accettate SOLO le richieste provenienti dalle origini elencate in
 //     ALLOWED_ORIGINS (le pagine dell'app): senza questo controllo chiunque
-//     potrebbe usare il Worker come proxy aperto verso il WFS.
-// Il Worker non conserva nulla.
+//     potrebbe usare il Worker come proxy aperto verso il WFS;
+//   * ogni visitatore e' limitato a RATE_LIMIT_MAX richieste al minuto.
 //
-// Nota: il controllo sull'origine (Origin/Referer) è un filtro lato browser e
-// scoraggia l'uso improprio, ma può essere aggirato da client che falsificano
-// gli header. Per una protezione più forte conviene attivare anche il "Rate
-// limiting" dal pannello Cloudflare.
+// Il Worker non conserva nulla: il contatore del limite di velocita' e' un
+// valore temporaneo che vive solo nella cache del data center Cloudflare.
+//
+// Nota: il controllo sull'origine (Origin/Referer) e' un filtro lato browser e
+// scoraggia l'uso improprio, ma puo' essere aggirato da client che falsificano
+// gli header; per questo il limite di velocita' agisce comunque per indirizzo IP.
 //
 // Come si pubblica: vedi proxy/README.md (5 minuti, piano gratuito).
 // ==========================================================================
@@ -59,6 +61,40 @@ const CORS_HEADERS = {
   'Access-Control-Max-Age': '86400',
 };
 
+// Limite di velocita': massimo RATE_LIMIT_MAX richieste per finestra
+// (RATE_LIMIT_WINDOW_MS) per visitatore. L'app, per caricare una vista, puo'
+// fare ~12 richieste (fino a ~36 coi ritentativi): il limite e' quindi alto
+// abbastanza da non disturbare l'uso normale, ma ferma gli abusi (uno script
+// non puo' piu' usare il Worker come relay illimitato verso il WFS).
+const RATE_LIMIT_MAX = 120;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+
+/**
+ * True se il visitatore ha superato il limite di richieste.
+ *
+ * Il conteggio usa la Cache API (nessun servizio aggiuntivo, piano gratuito):
+ * e' una stima per data center, sufficiente a scoraggiare gli abusi. In caso
+ * di errore non blocca mai il servizio.
+ */
+async function isRateLimited(request) {
+  try {
+    const ip = request.headers.get('CF-Connecting-IP') || 'sconosciuto';
+    const finestra = Math.floor(Date.now() / RATE_LIMIT_WINDOW_MS);
+    const chiave = new Request(
+      `https://rate-limit.mappa.invalid/${encodeURIComponent(ip)}/${finestra}`);
+    const cache = caches.default;
+    const precedente = await cache.match(chiave);
+    const conteggio = (precedente
+      ? Number(precedente.headers.get('x-conteggio')) || 0 : 0) + 1;
+    await cache.put(chiave, new Response(null, {
+      headers: { 'x-conteggio': String(conteggio), 'Cache-Control': 'max-age=60' },
+    }));
+    return conteggio > RATE_LIMIT_MAX;
+  } catch (_) {
+    return false;
+  }
+}
+
 export default {
   async fetch(request) {
     const requestUrl = new URL(request.url);
@@ -75,6 +111,12 @@ export default {
     if (!originAllowed(request)) {
       return jsonError(403, 'Origine non autorizzata: il proxy è riservato '
         + "alle pagine dell'app.");
+    }
+    if (await isRateLimited(request)) {
+      return jsonError(429,
+        `Troppe richieste: massimo ${RATE_LIMIT_MAX} al minuto per visitatore. `
+        + 'Riprovare tra poco.',
+        { 'Retry-After': '60' });
     }
 
     const target = requestUrl.searchParams.get('url');
@@ -121,9 +163,13 @@ export default {
   },
 };
 
-function jsonError(status, message) {
+function jsonError(status, message, extraHeaders = {}) {
   return new Response(JSON.stringify({ error: message }), {
     status,
-    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    headers: {
+      ...CORS_HEADERS,
+      'Content-Type': 'application/json',
+      ...extraHeaders,
+    },
   });
 }

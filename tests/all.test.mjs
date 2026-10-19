@@ -224,5 +224,59 @@ if (!proxyUrl) {
 }
 
 // --------------------------------------------------------------------------
+console.log('\n== Worker proxy: limite di velocita\' e controllo origine ==');
+try {
+  const store = new Map();
+  const realCaches = globalThis.caches;
+  const realNow = Date.now;
+  globalThis.caches = {
+    default: {
+      async match(req) { return store.get(req.url); },
+      async put(req, res) {
+        store.set(req.url, new Response(null,
+          { headers: { 'x-conteggio': res.headers.get('x-conteggio') } }));
+      },
+    },
+  };
+
+  const worker = (await import('../proxy/cloudflare-worker.js')).default;
+  const TARGET = 'http://example.com/';       // non https: 400 immediato
+  const ATTESO = 400;
+  const call = (origin, referer, ip = '10.0.0.1') => worker.fetch(new Request(
+    `https://mappa-proxy.test/?url=${encodeURIComponent(TARGET)}`,
+    { headers: { Origin: origin, Referer: referer, 'CF-Connecting-IP': ip } }));
+
+  const GO = 'https://mimmodc.github.io';
+  const r1 = await call(GO, `${GO}/mappa/`);
+  ok('richiesta autorizzata non bloccata', r1.status === ATTESO, `HTTP ${r1.status}`);
+
+  const rBad = await call('https://evil.example', 'https://evil.example/');
+  ok('origine non autorizzata rifiutata', rBad.status === 403, `HTTP ${rBad.status}`);
+
+  let r120 = r1;
+  for (let i = 1; i < 120; i++) r120 = await call(GO, `${GO}/mappa/`);
+  ok('la 120a richiesta dello stesso visitatore e\' accettata',
+     r120.status === ATTESO, `HTTP ${r120.status}`);
+
+  const r121 = await call(GO, `${GO}/mappa/`);
+  ok('la 121a richiesta viene limitata (429)',
+     r121.status === 429, `HTTP ${r121.status}`);
+  ok('la risposta 429 indica Retry-After', r121.headers.get('retry-after') === '60');
+
+  const rAltro = await call(GO, `${GO}/mappa/`, '10.0.0.2');
+  ok('un altro visitatore (IP diverso) non e\' bloccato',
+     rAltro.status === ATTESO, `HTTP ${rAltro.status}`);
+
+  Date.now = () => realNow() + 61_000;
+  const rDopo = await call(GO, `${GO}/mappa/`);
+  ok('dopo un minuto il contatore si azzera', rDopo.status === ATTESO, `HTTP ${rDopo.status}`);
+
+  Date.now = realNow;
+  globalThis.caches = realCaches;
+} catch (exc) {
+  ok('limite di velocita\' del Worker', false, exc.message);
+}
+
+// --------------------------------------------------------------------------
 console.log(`\nRiepilogo: ${passed} superati, ${failed} falliti, ${skipped} saltati.\n`);
 process.exit(failed ? 1 : 0);

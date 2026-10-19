@@ -175,9 +175,13 @@ Le attribuzioni sono riportate anche nella barra in basso della pagina.
   versione è fissata esattamente a `1.29.0`.
 - **Proxy ristretto**: il Worker CORS accetta solo richieste provenienti dalle
   origini dell'app (`ALLOWED_ORIGINS`) e inoltra solo verso il WFS catastale
-  (`ALLOWED_HOSTS`), quindi non può essere usato come proxy aperto. Per una
-  protezione maggiore è consigliabile attivare il *Rate limiting* dal pannello
-  Cloudflare.
+  (`ALLOWED_HOSTS`), quindi non può essere usato come proxy aperto.
+- **Limite di velocità**: ogni visitatore è limitato a **120 richieste al
+  minuto** (`RATE_LIMIT_MAX` nel Worker). Il limite è alto abbastanza da non
+  disturbare l'uso normale (una vista richiede ~12 richieste, fino a ~36 coi
+  ritentativi) ma ferma gli abusi. Oltre il limite il Worker risponde `429`.
+  Il conteggio è **per data center** (come i limitatori leggeri di Cloudflare),
+  quindi il valore effettivo può risultare più alto: vedi `proxy/README.md`.
 
 ## Struttura del progetto
 

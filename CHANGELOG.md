@@ -3,6 +3,22 @@
 Tutte le modifiche rilevanti di questo progetto sono annotate in questo file.
 Il formato segue il principio di [Keep a Changelog](https://keepachangelog.com/it/1.1.0/).
 
+## [2.0.6] - 2026-10-19
+
+### Sicurezza
+- **Limite di velocità nel Worker** (`RATE_LIMIT_MAX`): massimo **120 richieste
+  al minuto per visitatore** (per indirizzo IP). Oltre il limite risponde `429`
+  con `Retry-After`. Il valore è alto abbastanza da non disturbare l'uso
+  normale (una vista costa ~12 richieste, fino a ~36 coi ritentativi) ma ferma
+  gli abusi del proxy.
+- Il contatore usa la Cache API di Cloudflare: nessun servizio o binding
+  aggiuntivo; in caso di errore della cache il Worker non blocca le richieste.
+- **Limite noto**: il conteggio è per data center (Cloudflare serve lo stesso
+  visitatore da più data center, es. `MXP` e `FCO`), quindi il limite effettivo
+  può essere più alto del valore nominale. Verificato in produzione.
+- Aggiunto un test automatico del Worker (limite di velocità e controllo
+  origine) con cache simulata.
+
 ## [2.0.5] - 2026-10-18
 
 ### Sicurezza
