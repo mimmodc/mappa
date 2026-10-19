@@ -159,8 +159,12 @@ function initPanelResizer() {
 }
 
 function initMap() {
-  map = L.map('map', { zoomControl: true, attributionControl: true })
+  // I controlli zoom vanno in alto a destra: in alto a sinistra c'e' il
+  // pulsante del pannello e i due si coprirebbero a vicenda (Leaflet usa uno
+  // z-index piu' alto del pulsante).
+  map = L.map('map', { zoomControl: false, attributionControl: true })
     .setView(CONFIG.italyCenter, CONFIG.italyZoom);
+  L.control.zoom({ position: 'topright' }).addTo(map);
 
   fieldLayer = L.layerGroup().addTo(map);   // campo + particelle confinanti
   viewLayer = L.layerGroup().addTo(map);    // particelle della vista (zoom >= 16)

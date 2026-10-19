@@ -89,11 +89,6 @@ body.resizing { user-select: none; cursor: col-resize; }
   box-shadow: var(--shadow);
 }
 
-/* I controlli zoom di Leaflet stanno anch'essi in alto a sinistra: senza
-   questo scostamento coprirebbero il pulsante del pannello (Leaflet usa uno
-   z-index piu' alto). Vengono quindi spostati appena sotto il pulsante. */
-.leaflet-top.leaflet-left { top: 46px; }
-
 /* --- schede ------------------------------------------------------------- */
 .card {
   background: var(--panel); border: 1px solid var(--line);

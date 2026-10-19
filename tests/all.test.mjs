@@ -243,12 +243,13 @@ console.log('\n== Interfaccia: pannello ridimensionabile e controlli mappa ==');
   ok('maniglia nascosta su schermo stretto',
      /@media \(max-width: 820px\)[\s\S]*\.panel-resizer\s*\{\s*display:\s*none/.test(css));
 
-  // Il pulsante del pannello e' alto 40px: lo zoom di Leaflet deve scendere
-  // almeno sotto di esso, altrimenti lo copre (z-index piu' alto di Leaflet).
-  const offset = /\.leaflet-top\.leaflet-left\s*\{\s*top:\s*(\d+)px/.exec(css);
-  ok('i controlli zoom di Leaflet non coprono il pulsante del pannello',
-     offset !== null && Number(offset[1]) >= 40,
-     offset ? `${offset[1]}px` : 'regola assente');
+  // Lo zoom è spostato in alto a destra: in alto a sinistra c'è il pulsante
+  // del pannello e i due si coprirebbero (Leaflet ha uno z-index più alto).
+  ok('lo zoom di Leaflet è spostato in alto a destra',
+     /zoomControl:\s*false/.test(js)
+     && /L\.control\.zoom\(\{\s*position:\s*'topright'\s*\}\)/.test(js));
+  ok('nessuno scostamento residuo dei controlli in alto a sinistra',
+     !/\.leaflet-top\.leaflet-left\s*\{/.test(css));
 
   ok('ridimensionamento inizializzato all\'avvio', /initPanelResizer\(\);/.test(js));
   ok('larghezza ricordata fra le visite',
