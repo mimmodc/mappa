@@ -107,9 +107,14 @@
 
   </aside>
 
+  <div id="panel-resizer" class="panel-resizer" role="separator"
+       aria-orientation="vertical" aria-label="Ridimensiona il pannello"
+       tabindex="0"
+       title="Trascina per ridimensionare il pannello (doppio clic: larghezza predefinita)"></div>
+
   <main class="map-wrap">
     <div id="map"></div>
-    <button id="btn-toggle-panel" class="panel-toggle" type="button" title="Mostra/nascondi il pannello">&#9776;</button>
+    <button id="btn-toggle-panel" class="panel-toggle" type="button" title="Mostra/nascondi il pannello" aria-label="Mostra o nascondi il pannello">&#9776;</button>
   </main>
 
 </div>
@@ -132,6 +137,10 @@
       <li>Area, perimetro e centroide sono calcolati sull'ellissoide WGS84
           (stesso algoritmo dell'app desktop) e puoi esportare il campo come
           <b>GeoJSON</b>.</li>
+      <li>Il pannello a sinistra si pu&ograve; <b>ridimensionare</b> trascinando
+          il suo bordo destro (doppio clic per tornare alla larghezza
+          predefinita). Il pulsante &#9776; in alto a sinistra lo mostra o lo
+          nasconde.</li>
     </ol>
     <h2>Dati</h2>
     <ul>

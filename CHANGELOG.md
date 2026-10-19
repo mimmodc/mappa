@@ -3,6 +3,20 @@
 Tutte le modifiche rilevanti di questo progetto sono annotate in questo file.
 Il formato segue il principio di [Keep a Changelog](https://keepachangelog.com/it/1.1.0/).
 
+## [2.0.7] - 2026-10-19
+
+### Interfaccia
+- **Corretto**: i pulsanti zoom (+/−) di Leaflet coprivano il pulsante &#9776;
+  che mostra/nasconde il pannello laterale. I due controlli erano entrambi in
+  alto a sinistra e Leaflet ha uno `z-index` più alto. Ora i controlli zoom
+  stanno appena sotto il pulsante.
+- **Novità**: il pannello laterale è **ridimensionabile** trascinando la
+  maniglia sul suo bordo destro; il doppio clic ripristina la larghezza
+  predefinita. La larghezza è ricordata fra le visite (`localStorage`) ed è
+  regolabile anche da tastiera (frecce, `Home`). Su schermo stretto la maniglia
+  è disattivata.
+- Aggiunti test di regressione statici sull'interfaccia (10 nuovi test).
+
 ## [2.0.6] - 2026-10-19
 
 ### Sicurezza

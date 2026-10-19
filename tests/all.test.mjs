@@ -224,6 +224,42 @@ if (!proxyUrl) {
 }
 
 // --------------------------------------------------------------------------
+console.log('\n== Interfaccia: pannello ridimensionabile e controlli mappa ==');
+{
+  const html = readFileSync(join(HERE, '..', 'index.html'), 'utf8');
+  const css = readFileSync(join(HERE, '..', 'web', 'app.css'), 'utf8');
+  const js = readFileSync(join(HERE, '..', 'web', 'app.js'), 'utf8');
+
+  ok('maniglia del pannello con ruolo accessibile',
+     /id="panel-resizer"[\s\S]{0,200}?role="separator"/.test(html)
+     && /aria-orientation="vertical"/.test(html));
+  ok('pulsante del pannello con etichetta accessibile',
+     /id="btn-toggle-panel"[\s\S]{0,200}?aria-label=/.test(html));
+
+  ok('larghezza del pannello basata su variabile CSS',
+     /--panel-w:\s*\d+px/.test(css) && /width:\s*var\(--panel-w\)/.test(css));
+  ok('la maniglia si nasconde quando il pannello e\' chiuso',
+     /\.panel\.hidden\s*\+\s*\.panel-resizer\s*\{\s*display:\s*none/.test(css));
+  ok('maniglia nascosta su schermo stretto',
+     /@media \(max-width: 820px\)[\s\S]*\.panel-resizer\s*\{\s*display:\s*none/.test(css));
+
+  // Il pulsante del pannello e' alto 40px: lo zoom di Leaflet deve scendere
+  // almeno sotto di esso, altrimenti lo copre (z-index piu' alto di Leaflet).
+  const offset = /\.leaflet-top\.leaflet-left\s*\{\s*top:\s*(\d+)px/.exec(css);
+  ok('i controlli zoom di Leaflet non coprono il pulsante del pannello',
+     offset !== null && Number(offset[1]) >= 40,
+     offset ? `${offset[1]}px` : 'regola assente');
+
+  ok('ridimensionamento inizializzato all\'avvio', /initPanelResizer\(\);/.test(js));
+  ok('larghezza ricordata fra le visite',
+     /PANEL_W_KEY/.test(js) && /localStorage\.setItem\(PANEL_W_KEY/.test(js));
+  ok('ridimensionamento accessibile da tastiera',
+     /'ArrowLeft'/.test(js) && /'ArrowRight'/.test(js));
+  ok('ridisegno della mappa durante il trascinamento',
+     /invalidateSize/.test(js));
+}
+
+// --------------------------------------------------------------------------
 console.log('\n== Worker proxy: limite di velocita\' e controllo origine ==');
 try {
   const store = new Map();

@@ -13,6 +13,7 @@
   --warn: #b26a00;
   --radius: 12px;
   --shadow: 0 1px 2px rgba(0, 0, 0, .07), 0 6px 18px rgba(21, 66, 27, .08);
+  --panel-w: 390px;   /* larghezza del pannello laterale (modificabile a mano) */
 }
 
 * { box-sizing: border-box; }
@@ -55,11 +56,28 @@ body { display: flex; flex-direction: column; }
 .layout { flex: 1; display: flex; min-height: 0; position: relative; }
 
 .panel {
-  width: 390px; flex: 0 0 390px; overflow-y: auto;
+  width: var(--panel-w); flex: 0 0 var(--panel-w); overflow-y: auto;
   padding: 14px; display: flex; flex-direction: column; gap: 12px;
   background: var(--bg); border-right: 1px solid var(--line);
 }
 .panel.hidden { display: none; }
+
+/* --- maniglia di ridimensionamento del pannello ------------------------- */
+.panel-resizer {
+  flex: 0 0 6px; position: relative; z-index: 600;
+  cursor: col-resize; touch-action: none; background: transparent;
+}
+/* Barra visibile solo al passaggio del mouse o durante il trascinamento. */
+.panel-resizer::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 2px; width: 2px;
+  border-radius: 2px; background: transparent; transition: background .15s;
+}
+.panel-resizer:hover::before,
+.panel-resizer:focus-visible::before,
+.panel-resizer.dragging::before { background: var(--accent); }
+.panel-resizer:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.panel.hidden + .panel-resizer { display: none; }
+body.resizing { user-select: none; cursor: col-resize; }
 
 .map-wrap { flex: 1; position: relative; min-width: 0; }
 #map { position: absolute; inset: 0; background: #dfe6dc; }
@@ -70,6 +88,11 @@ body { display: flex; flex-direction: column; }
   border: 1px solid var(--line); background: #fff; font-size: 18px;
   box-shadow: var(--shadow);
 }
+
+/* I controlli zoom di Leaflet stanno anch'essi in alto a sinistra: senza
+   questo scostamento coprirebbero il pulsante del pannello (Leaflet usa uno
+   z-index piu' alto). Vengono quindi spostati appena sotto il pulsante. */
+.leaflet-top.leaflet-left { top: 46px; }
 
 /* --- schede ------------------------------------------------------------- */
 .card {
@@ -175,4 +198,6 @@ button.primary:hover { background: var(--accent-dark); }
   }
   .map-wrap { order: 1; flex: 1 1 48vh; }
   .panel.hidden { display: none; }
+  /* Su schermo stretto il pannello sta sotto la mappa: niente ridimensionamento. */
+  .panel-resizer { display: none; }
 }

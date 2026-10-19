@@ -12,6 +12,12 @@ import { CatastoService } from './catasto.js';
 
 const $ = (id) => document.getElementById(id);
 
+// Larghezza del pannello laterale (px). Viene ricordata fra le visite.
+const PANEL_W_KEY = 'mappa_campo_agricolo.panelWidth';
+const PANEL_W_DEFAULT = 390;
+const PANEL_W_MIN = 260;
+const PANEL_W_MAX = 720;
+
 const state = {
   mode: 'move',
   showParcels: true,
@@ -58,8 +64,98 @@ function init() {
   initMap();
   initBasemaps();
   initControls();
+  initPanelResizer();
   setStatus('Pronto. Caricamento dell\'indice dei comuni...');
   initCatasto();
+}
+
+// --------------------------------------------------------------------------
+// Pannello laterale ridimensionabile
+// --------------------------------------------------------------------------
+function initPanelResizer() {
+  const panel = document.querySelector('.panel');
+  const resizer = $('panel-resizer');
+  if (!panel || !resizer) return;
+
+  const maxWidth = () => Math.max(PANEL_W_MIN,
+    Math.min(PANEL_W_MAX, Math.round(window.innerWidth * 0.7)));
+  let width = PANEL_W_DEFAULT;
+
+  /** Applica una larghezza (limitata ai minimi/massimi) e, se richiesto, la salva. */
+  function apply(value, persist = false) {
+    width = Math.max(PANEL_W_MIN, Math.min(maxWidth(), Math.round(value)));
+    document.documentElement.style.setProperty('--panel-w', `${width}px`);
+    resizer.setAttribute('aria-valuenow', String(width));
+    resizer.setAttribute('aria-valuemin', String(PANEL_W_MIN));
+    resizer.setAttribute('aria-valuemax', String(maxWidth()));
+    if (persist) {
+      try { localStorage.setItem(PANEL_W_KEY, String(width)); } catch (_) { /* ignora */ }
+    }
+  }
+
+  let salvata = NaN;
+  try { salvata = Number(localStorage.getItem(PANEL_W_KEY)); } catch (_) { /* ignora */ }
+  apply(Number.isFinite(salvata) && salvata > 0 ? salvata : PANEL_W_DEFAULT);
+
+  // Durante il trascinamento arrivano molti eventi: la mappa viene ridisegnata
+  // al massimo una volta per fotogramma.
+  let pending = false;
+  function refreshMap() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => {
+      pending = false;
+      if (map) map.invalidateSize();
+    });
+  }
+
+  let dragging = false;
+  resizer.addEventListener('pointerdown', (event) => {
+    dragging = true;
+    resizer.classList.add('dragging');
+    document.body.classList.add('resizing');
+    try { resizer.setPointerCapture(event.pointerId); } catch (_) { /* ignora */ }
+    event.preventDefault();
+  });
+  resizer.addEventListener('pointermove', (event) => {
+    if (!dragging) return;
+    apply(event.clientX - panel.getBoundingClientRect().left);
+    refreshMap();
+  });
+  const stop = (event) => {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove('dragging');
+    document.body.classList.remove('resizing');
+    try { resizer.releasePointerCapture(event.pointerId); } catch (_) { /* ignora */ }
+    apply(width, true);
+    refreshMap();
+  };
+  resizer.addEventListener('pointerup', stop);
+  resizer.addEventListener('pointercancel', stop);
+
+  // Doppio clic: torna alla larghezza predefinita.
+  resizer.addEventListener('dblclick', () => {
+    apply(PANEL_W_DEFAULT, true);
+    refreshMap();
+  });
+
+  // Tastiera (accessibilità): frecce per ridimensionare, Home per il default.
+  resizer.addEventListener('keydown', (event) => {
+    const passo = event.shiftKey ? 40 : 10;
+    if (event.key === 'ArrowLeft') apply(width - passo, true);
+    else if (event.key === 'ArrowRight') apply(width + passo, true);
+    else if (event.key === 'Home') apply(PANEL_W_DEFAULT, true);
+    else return;
+    event.preventDefault();
+    refreshMap();
+  });
+
+  // Se la finestra si restringe, riporta la larghezza entro i limiti.
+  window.addEventListener('resize', () => {
+    apply(width);
+    refreshMap();
+  });
 }
 
 function initMap() {
