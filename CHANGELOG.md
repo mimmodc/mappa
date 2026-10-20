@@ -3,6 +3,43 @@
 Tutte le modifiche rilevanti di questo progetto sono annotate in questo file.
 Il formato segue il principio di [Keep a Changelog](https://keepachangelog.com/it/1.1.0/).
 
+## [2.1.0] - 2026-10-20
+
+### Novità
+- **Scheda catastale dei terreni gratuita**: con una particella selezionata
+  (mappa o ricerca) la nuova sezione 5 mostra **qualità di coltura, classe,
+  ettari/are/centiare, reddito dominicale e reddito agrario**, letti dal
+  servizio pubblico *Variazioni colturali on line* dell'Agenzia delle Entrate.
+  Il servizio non richiede login e consente richieste dirette dal browser
+  (CORS aperto), quindi **non serve modificare o ripubblicare il Worker**.
+- La scheda somma automaticamente le eventuali **porzioni** della particella,
+  mostra i totali, permette di **copiare** il riepilogo e di **stamparlo** con
+  un layout dedicato.
+- Sempre visibili i link ai servizi ufficiali: **visura catastale gratuita**
+  (dal 1° gennaio 2025, con SPID/CIE/CNS) e **consultazione rendite catastali**
+  (gratuita, con CAPTCHA).
+- Aggiunto `web/comuni-province.js` (comune catastale → sigla provincia,
+  generato da 7.904 comuni) con gestione delle **province storiche** usate dal
+  servizio: `BT` → `BA`/`FG`, `FC` → `FO`, `FM` → `AP`, `MB` → `MI`,
+  `PU` → `PS`, `SU` → `CA`/`OR`/`NU`/`SS`.
+
+### Limiti dichiarati nell'interfaccia
+- La copertura del servizio è **parziale**: non tutte le particelle del catasto
+  terreni sono presenti. In quel caso l'app lo spiega e rimanda ai servizi
+  ufficiali.
+- **Non è una visura ufficiale**: è un riepilogo informativo, senza valore
+  legale.
+- **Trento e Bolzano** non compaiono nell'elenco delle province del servizio
+  (catasto tavolare).
+
+### Test e documentazione
+- Aggiunti test di parsing delle pagine reali di ricerca e dettaglio, dei
+  totali, dell'elenco comuni, dell'abbinamento dei nomi (accenti/apostrofi),
+  delle province storiche, del client con fetch simulata e degli agganci di
+  interfaccia.
+- `README.md` aggiornato con funzionamento, limiti, fonti e privacy.
+- Versione portata a **2.1**.
+
 ## [2.0.7] - 2026-10-19
 
 ### Interfaccia

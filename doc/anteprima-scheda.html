@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anteprima — Scheda catastale dei terreni (v2.1)</title>
+<link rel="stylesheet" href="../web/app.css">
+<style>
+  body { display: block; }
+  .preview-shell { display: flex; gap: 18px; align-items: flex-start; padding: 16px; flex-wrap: wrap; }
+  .preview-panel { width: 560px; max-width: 100%; background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px; }
+  .preview-banner { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; background: #fff8e6; border: 1px solid #f0d79a; color: #6b4e12; font-size: 12.5px; }
+  .preview-side { flex: 1; min-width: 280px; max-width: 520px; display: flex; flex-direction: column; gap: 12px; }
+  .preview-side .card { box-shadow: var(--shadow); }
+  .preview-side h2 { margin: 0 0 8px; font-size: 15px; }
+  .preview-side p, .preview-side li { font-size: 13px; color: var(--muted); }
+  .preview-side code { background: #eef5ec; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .preview-missing .visura-empty { margin: 0; }
+</style>
+</head>
+<body>
+<div class="preview-shell">
+  <div class="preview-panel">
+    <p class="preview-banner">
+      <b>Anteprima statica</b> — dati reali letti il 20/10/2026 13:05
+      dal servizio <i>Variazioni colturali on line</i>. Non è la visura ufficiale.
+    </p>
+    <section class="card" id="card-visura">
+      <h2><span class="n">5</span> Scheda catastale dei terreni</h2>
+      <p class="hint visura-help">
+        Qualità di coltura, classe, superficie e redditi della particella
+        selezionata, letti dal servizio pubblico
+        <b>Variazioni colturali on line</b> dell'Agenzia delle Entrate.
+        La copertura è <b>parziale</b>: non tutte le particelle sono presenti.
+        Non è una visura ufficiale.
+      </p>
+      <p id="visura-ident" class="visura-ident">Comune: Pavia (G388)
+Provincia: PV
+Sezione: B
+Foglio: 9
+Particella: 37</p>
+      <div class="row">
+        <button id="btn-visura" class="primary" type="button">Mostra la scheda</button>
+        <button id="btn-copia-ident" type="button">Copia identificativi</button>
+      </div>
+      <p id="visura-status" class="hint" role="status" aria-live="polite">Scheda caricata.</p>
+      <div id="out-visura" class="visura">
+
+    <div class="visura-head">
+      <strong>Comune di PAVIA (PV)</strong>
+      <span>Codice catastale G388 · sezione B · fonte: Variazioni colturali on line</span>
+    </div>
+    <div class="visura-table-wrap">
+      <table class="visura-table">
+        <caption>Foglio 9 · particella 37 · 2 porzione/i</caption>
+        <thead><tr><th scope="col">Porzione</th><th scope="col">Qualità</th><th scope="col">Classe</th><th scope="col" class="num">Superficie</th><th scope="col" class="num">Reddito dominicale</th><th scope="col" class="num">Reddito agrario</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>AA</td>
+          <td>PRATO IRRIGUO ARBORATO</td>
+          <td>1</td>
+          <td class="num">0,0413 ha</td>
+          <td class="num">5,65 €</td>
+          <td class="num">3,84 €</td>
+        </tr>
+        <tr>
+          <td>AB</td>
+          <td>RISAIA STABILE</td>
+          <td>0</td>
+          <td class="num">0,9622 ha</td>
+          <td class="num">131,69 €</td>
+          <td class="num">54,66 €</td>
+        </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row" colspan="3">Totale</th>
+            <td class="num">1,0035 ha</td>
+            <td class="num">137,34 €</td>
+            <td class="num">58,50 €</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="visura-actions">
+      <button type="button">Copia scheda</button>
+      <button type="button">Stampa</button>
+      <button type="button">Aggiorna</button>
+      <a href="https://www1.agenziaentrate.gov.it/servizi/VariazioniColturali/motore.php?id=&amp;idimmobile=353329681&amp;idcomune=G388&amp;idsezione=B" target="_blank" rel="noopener">Apri la pagina originale</a>
+    </div>
+    <p class="visura-note">Consultato il 20/10/2026 13:05. Dati pubblici dell'Agenzia delle Entrate. Riepilogo informativo: non sostituisce la visura catastale ufficiale.</p>
+      </div>
+      <div class="visura-links">
+        <a target="_blank" rel="noopener" href="https://www.agenziaentrate.gov.it/portale/schede/fabbricatiterreni/visura-catastale/visura-catastale-online">Visura ufficiale gratuita (SPID/CIE/CNS)</a>
+        <a target="_blank" rel="noopener" href="https://www.agenziaentrate.gov.it/portale/schede/fabbricatiterreni/visura-catastale/consultazione-rendite-catastali">Consultazione rendite catastali (senza SPID, con CAPTCHA)</a>
+      </div>
+    </section>
+  </div>
+
+  <div class="preview-side">
+    <section class="card preview-missing">
+      <h2>Quando la particella non è nell'archivio</h2>
+      <p id="visura-ident" class="visura-ident">Comune: Pavia (G388)
+Provincia: PV
+Sezione: A
+Foglio: 3
+Particella: 218</p>
+      <div class="visura">
+        <p class="visura-empty">La particella (foglio 3 · particella 218 sezione A) non risulta nell'archivio Variazioni colturali. La copertura del servizio è parziale: molte particelle non sono presenti. Per i dati ufficiali usa la visura gratuita (SPID/CIE/CNS) o la consultazione rendite (con CAPTCHA).</p>
+        <div class="visura-actions">
+          <a href="https://www1.agenziaentrate.gov.it/servizi/VariazioniColturali/motore.php?action=search&amp;provincia=PV&amp;comune=PAVIA&amp;sezione=A&amp;foglio=3&amp;numero=218" target="_blank" rel="noopener">Apri la ricerca originale</a>
+          <button type="button">Riprova</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Come vederla nell'app vera</h2>
+      <p>Da terminale, nella cartella del progetto:</p>
+      <p><code>python3 -m http.server 8123</code></p>
+      <p>Poi apri <code>http://localhost:8123</code>, seleziona una particella
+      agricola sulla mappa (o cerca comune + foglio + particella) e premi
+      <b>Mostra la scheda</b> nella sezione 5.</p>
+      <p>Questa anteprima serve solo a mostrare l'aspetto: i pulsanti Copia,
+      Stampa e Aggiorna sono attivi solo nell'app.</p>
+    </section>
+  </div>
+</div>
+</body>
+</html>

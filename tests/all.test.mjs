@@ -315,5 +315,187 @@ try {
 }
 
 // --------------------------------------------------------------------------
+console.log('\n== Scheda catastale dei terreni (visura.js) ==');
+{
+  const visura = await import('../web/visura.js');
+  const { provinceOf, serviceProvinces } = await import('../web/comuni-province.js');
+  const provcomXml = readFileSync(join(FIXTURES, 'visura_provcom_pv.xml'), 'utf8');
+  const searchHtml = readFileSync(join(FIXTURES, 'visura_search_pavia.html'), 'utf8');
+  const detailHtml = readFileSync(join(FIXTURES, 'visura_detail_pavia.html'), 'utf8');
+
+  ok('provincia da codice catastale (Pavia)', provinceOf('G388') === 'PV',
+     provinceOf('G388'));
+  ok('provincia da codice catastale (Abano Terme)', provinceOf('A001') === 'PD',
+     provinceOf('A001'));
+  ok('provincia storica FC -> FO', serviceProvinces('FC').includes('FO'));
+  ok('provincia storica BT -> BA/FG',
+     serviceProvinces('BT').includes('BA') && serviceProvinces('BT').includes('FG'));
+  ok('provincia storica SU -> CA/OR/NU/SS',
+     ['CA', 'OR', 'NU', 'SS'].every((p) => serviceProvinces('SU').includes(p)));
+
+  const names = visura.parseProvcomXml(provcomXml);
+  ok('elenco comuni della provincia', names.length > 100 && names.includes('PAVIA'),
+     `${names.length}`);
+  ok('abbinamento nome ufficiale (Pavia)',
+     visura.matchOfficialComune(names, 'Pavia') === 'PAVIA');
+  ok('abbinamento con accento e apostrofo (Bascapè)',
+     visura.matchOfficialComune(names, 'Bascapè') === "BASCAPE'",
+     visura.matchOfficialComune(names, 'Bascapè'));
+
+  const search = visura.parseSearchResults(searchHtml);
+  ok('ricerca: un risultato', search.total === 1 && search.rows.length === 1,
+     `${search.total}/${search.rows.length}`);
+  const row = search.rows[0];
+  ok('ricerca: identificativi della particella',
+     row.idimmobile === '353329681' && row.idcomune === 'G388'
+     && row.idsezione === 'B');
+  ok('ricerca: foglio e particella', row.foglio === '9' && row.numero === '37');
+
+  ok('ricerca senza risultati riconosciuta',
+     visura.parseSearchResults(
+       '<div class="nontrovato">Nessuna particella trovata</div>',
+     ).notFound === true);
+
+  const detail = visura.parseDetail(detailHtml);
+  ok('dettaglio: due porzioni', detail.rows.length === 2, `${detail.rows.length}`);
+  ok('dettaglio: qualità della prima porzione',
+     detail.rows[0].qualita === 'PRATO IRRIGUO ARBORATO');
+  ok('dettaglio: classe della prima porzione', detail.rows[0].classe === '1');
+  ok('dettaglio: superficie della prima porzione',
+     near(detail.rows[0].superficieHa, 0.0413, 1e-9));
+  ok('dettaglio: totale superficie', near(detail.totals.superficieHa, 1.0035, 1e-9),
+     `${detail.totals.superficieHa}`);
+  ok('dettaglio: totale redditi',
+     near(detail.totals.redditoDominicale, 137.34, 0.001)
+     && near(detail.totals.redditoAgrario, 58.50, 0.001));
+  ok('dettaglio: totale calcolato coerente',
+     near(detail.computed.superficieHa, detail.totals.superficieHa, 1e-9));
+
+  ok('numero italiano', visura.parseItalianNumber('1.234,56') === 1234.56);
+  ok('formato ettari', visura.formatHa(1.0035) === '1,0035 ha',
+     visura.formatHa(1.0035));
+  ok('formato euro', visura.formatEuro(58.5) === '58,50 \u20ac',
+     visura.formatEuro(58.5));
+  ok('identificativi normalizzati',
+     visura.identifiersText({
+       comuneCode: 'G388', comuneName: 'Pavia', sezione: 'B',
+       foglio: '0009', particella: '0037',
+     }).includes('Particella: 37'));
+
+  const searchUrl = visura.buildSearchUrl({
+    provincia: 'PV', comune: 'PAVIA', sezione: 'B', foglio: '9', numero: '37',
+  });
+  ok('URL di ricerca', searchUrl.includes('action=search')
+     && searchUrl.includes('provincia=PV') && searchUrl.includes('comune=PAVIA'));
+  const withoutSection = visura.buildSearchUrl({
+    provincia: 'PV', comune: 'PAVIA', sezione: '', foglio: '9', numero: '37',
+  });
+  ok('URL di ricerca senza sezione', !withoutSection.includes('sezione='));
+
+  const response = (body, contentType = 'text/html; charset=UTF-8') => ({
+    ok: true,
+    status: 200,
+    headers: { get: () => contentType },
+    arrayBuffer: async () => new TextEncoder().encode(body).buffer,
+  });
+
+  const pages = [provcomXml, searchHtml, detailHtml];
+  const calls = [];
+  const client = new visura.VisuraClient({
+    fetchImpl: async (url) => {
+      calls.push(String(url));
+      const body = pages.shift();
+      return response(body, String(url).includes('provcom.php')
+        ? 'text/xml; charset=UTF-8' : 'text/html; charset=UTF-8');
+    },
+    // Data locale: il riepilogo mostra l'ora del browser, non UTC.
+    now: () => new Date(2026, 9, 20, 10, 53, 40),
+  });
+  const parcel = {
+    comuneCode: 'G388', comuneName: 'Pavia', sezione: 'B',
+    foglio: '0009', particella: '0037',
+  };
+  const result = await client.lookup(parcel);
+  ok('client: scheda trovata', result.found === true);
+  ok('client: tre richieste (comuni, ricerca, dettaglio)', calls.length === 3,
+     `${calls.length}`);
+  ok('client: totale della scheda', near(result.detail.totals.superficieHa, 1.0035, 1e-9));
+  ok('client: data di consultazione',
+     visura.formatDateTimeIt(result.fetchedAt) === '20/10/2026 10:53',
+     visura.formatDateTimeIt(result.fetchedAt));
+
+  const cached = await client.lookup(parcel);
+  ok('client: risultato in cache senza nuove richieste',
+     cached === result && calls.length === 3, `${calls.length}`);
+
+  const notFoundClient = new visura.VisuraClient({
+    fetchImpl: async (url) => response(String(url).includes('provcom.php')
+      ? provcomXml
+      : '<div class="nontrovato">Nessuna particella trovata</div>'),
+  });
+  const notFound = await notFoundClient.lookup({
+    comuneCode: 'G388', comuneName: 'Pavia', sezione: 'A',
+    foglio: '3', particella: '218',
+  });
+  ok('client: particella assente dall\'archivio',
+     notFound.found === false && notFound.reason === 'not-found',
+     `${notFound.found}/${notFound.reason}`);
+
+  const btCalls = [];
+  const btClient = new visura.VisuraClient({
+    fetchImpl: async (url) => {
+      btCalls.push(String(url));
+      if (String(url).includes('prov=BA')) {
+        return response('<root><dizione>ANDRIA</dizione></root>',
+          'text/xml; charset=UTF-8');
+      }
+      if (String(url).includes('prov=FG')) {
+        return response('<root><dizione>MARGHERITA DI SAVOIA</dizione></root>',
+          'text/xml; charset=UTF-8');
+      }
+      return response('<div class="nontrovato">Nessuna particella trovata</div>');
+    },
+  });
+  const bt = await btClient.lookup({
+    comuneCode: 'E946', comuneName: 'Margherita di Savoia',
+    sezione: '', foglio: '1', particella: '1',
+  });
+  ok('province storiche: prova BA e poi FG',
+     btCalls.some((url) => url.includes('prov=BA'))
+     && btCalls.some((url) => url.includes('prov=FG')));
+  ok('province storiche: esito registrato', bt.found === false
+     && bt.tried.includes('BA') && bt.tried.includes('FG'));
+}
+
+// --------------------------------------------------------------------------
+console.log('\n== Interfaccia: scheda catastale dei terreni ==');
+{
+  const html = readFileSync(join(HERE, '..', 'index.html'), 'utf8');
+  const css = readFileSync(join(HERE, '..', 'web', 'app.css'), 'utf8');
+  const js = readFileSync(join(HERE, '..', 'web', 'app.js'), 'utf8');
+
+  ok('scheda presente nella pagina',
+     /id="card-visura"/.test(html) && /id="btn-visura"/.test(html));
+  ok('pulsante disabilitato finché non c\'è una particella',
+     /id="btn-visura"[^>]*disabled/.test(html));
+  ok('contenitore del risultato presente', /id="out-visura"/.test(html));
+  ok('stato accessibile con aria-live',
+     /id="visura-status"[^>]*role="status"[^>]*aria-live="polite"/.test(html));
+  ok('link alla visura ufficiale', /visura-catastale-online/.test(html));
+  ok('link alla consultazione rendite',
+     /consultazione-rendite-catastali/.test(html));
+  ok('avvertenza sulla copertura parziale',
+     /copertura &egrave; <b>parziale<\/b>/.test(html));
+  ok('l\'app istanzia il client della scheda', /new VisuraClient\(\)/.test(js));
+  ok('l\'app aggiorna la scheda quando cambia il campo',
+     /updateVisuraState\(\{ reset: true \}\)/.test(js));
+  ok('tabella della scheda stilizzata', /\.visura-table/.test(css));
+  ok('stampa dedicata della sola scheda',
+     /@media print/.test(css) && /printing-visura/.test(css));
+  ok('la scheda si nasconde quando non c\'è una particella',
+     /resetVisura\(\)/.test(js));
+}
+
+// --------------------------------------------------------------------------
 console.log(`\nRiepilogo: ${passed} superati, ${failed} falliti, ${skipped} saltati.\n`);
 process.exit(failed ? 1 : 0);

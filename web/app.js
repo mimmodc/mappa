@@ -1,14 +1,19 @@
 // ==========================================================================
-// Mappa Campi Agricoli v2.0 - versione web
+// Mappa Campi Agricoli v2.1 - versione web
 // --------------------------------------------------------------------------
 // Logica applicativa: modalita' mappa, ricerca catastale, selezione del campo,
-// overlay delle particelle (gruppi "campo" e "vista"), dettagli, esportazione.
+// overlay delle particelle (gruppi "campo" e "vista"), dettagli, esportazione,
+// scheda colturale dei terreni (Variazioni colturali on line).
 // ==========================================================================
 
 import { CONFIG, COLORS, loadProxy, proxyFromQuery } from './config.js';
 import { geometryMeasure, ringCentroid, bboxOf, fmtNum } from './geo.js';
 import { WfsClient } from './wfs.js';
 import { CatastoService } from './catasto.js';
+import {
+  VisuraClient, VisuraError, OFFICIAL_VISURA_URL, OFFICIAL_RENDITE_URL,
+  identifiersText, visuraSummaryText, formatHa, formatEuro, formatDateTimeIt,
+} from './visura.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -26,6 +31,7 @@ const state = {
   fieldIds: new Set(),    // particelle del gruppo "campo"
   catasto: null,
   catastoReady: false,
+  visuraResult: null,     // ultima scheda colturale caricata
 };
 
 let map = null;
@@ -40,6 +46,8 @@ let fieldToken = 0;
 let viewController = null;
 let fieldController = null;
 let wfs = null;
+let visuraClient = null;
+let visuraToken = 0;
 
 // --------------------------------------------------------------------------
 // Utilità di interfaccia
@@ -60,11 +68,13 @@ function busy(on) {
 function init() {
   proxyFromQuery();                 // ?proxy=... ha la precedenza (comodo per le prove)
   wfs = new WfsClient(() => loadProxy());
+  visuraClient = new VisuraClient();
 
   initMap();
   initBasemaps();
   initControls();
   initPanelResizer();
+  updateVisuraState();
   setStatus('Pronto. Caricamento dell\'indice dei comuni...');
   initCatasto();
 }
@@ -233,6 +243,15 @@ function initControls() {
   $('btn-geojson').addEventListener('click', exportGeoJson);
   $('btn-dettagli').addEventListener('click', copyDetails);
 
+  $('btn-visura').addEventListener('click', () => onVisura());
+  $('btn-copia-ident').addEventListener('click', copyIdentifiers);
+  $('out-visura').addEventListener('click', onVisuraAction);
+  $('link-visura-ufficiale').href = OFFICIAL_VISURA_URL;
+  $('link-rendite').href = OFFICIAL_RENDITE_URL;
+  window.addEventListener('afterprint', () => {
+    document.body.classList.remove('printing-visura');
+  });
+
   $('btn-help').addEventListener('click', () => { $('modal').hidden = false; });
   $('modal-close').addEventListener('click', () => { $('modal').hidden = true; });
   $('modal').addEventListener('click', (e) => {
@@ -251,6 +270,7 @@ async function initCatasto() {
     await state.catasto.init((msg) => setStatus(msg));
     state.catastoReady = true;
     fillComuniDatalist(state.catasto.comuni);
+    updateVisuraState();
     if (loadProxy()) {
       setStatus(`Pronto. ${state.catasto.comuni.length} comuni disponibili.`);
     } else {
@@ -489,6 +509,7 @@ function applyField(field, reason) {
   updateDetails(reason);
   $('btn-geojson').disabled = false;
   $('btn-dettagli').disabled = false;
+  updateVisuraState({ reset: true });
   scheduleFieldParcels();
   // Il gruppo "vista" esclude le particelle del campo: cambiando campo va
   // ridisegnato, altrimenti resterebbe potato secondo il campo precedente.
@@ -547,6 +568,9 @@ function clearField(announce = false) {
   $('d-centroide').textContent = '\u2013';
   $('d-particella').textContent = '\u2013';
   $('d-stato').textContent = 'Nessun campo selezionato.';
+  resetVisura();
+  $('visura-ident').textContent =
+    'Seleziona una particella catastale dalla mappa o dalla ricerca.';
   if (announce) setStatus('Campo cancellato.');
 }
 
@@ -704,7 +728,7 @@ function fieldFeature() {
       particella: field.parcel?.particella || null,
       inspire_id: field.parcel?.localId || null,
       fonte: field.parcel ? 'Catasto (Agenzia delle Entrate)' : 'disegnato a mano',
-      generato_da: 'Mappa Campi Agricoli v2.0 web',
+      generato_da: 'Mappa Campi Agricoli v2.1 web',
     },
     geometry: { type: 'Polygon', coordinates },
   };
@@ -747,6 +771,316 @@ function copyDetails() {
 }
 
 // --------------------------------------------------------------------------
+// Scheda catastale dei terreni (Variazioni colturali on line)
+// --------------------------------------------------------------------------
+function parcelForVisura() {
+  const parcel = state.field && state.field.parcel;
+  if (!parcel) return null;
+  let comuneName = '';
+  if (state.catasto && state.catasto.comuni) {
+    const found = state.catasto.findComuni(parcel.comune, 5)
+      .find((c) => c.code.toUpperCase() === String(parcel.comune).toUpperCase());
+    if (found) comuneName = found.name;
+  }
+  return {
+    comuneCode: parcel.comune,
+    comuneName,
+    sezione: parcel.sezione || '',
+    foglio: parcel.foglio,
+    particella: parcel.particella,
+  };
+}
+
+function updateVisuraState({ reset = false } = {}) {
+  if (reset) resetVisura();
+  const parcel = parcelForVisura();
+  const hasParcel = Boolean(parcel);
+  $('btn-visura').disabled = !hasParcel;
+  $('btn-copia-ident').disabled = !hasParcel;
+  $('visura-ident').textContent = hasParcel
+    ? identifiersText(parcel)
+    : 'Seleziona una particella catastale dalla mappa o dalla ricerca.';
+}
+
+function resetVisura() {
+  visuraToken += 1;
+  state.visuraResult = null;
+  const out = $('out-visura');
+  if (out) {
+    out.hidden = true;
+    out.replaceChildren();
+  }
+  const status = $('visura-status');
+  if (status) {
+    status.textContent = '';
+    status.classList.remove('err');
+  }
+  const hasParcel = Boolean(state.field && state.field.parcel);
+  $('btn-visura').disabled = !hasParcel;
+  $('btn-copia-ident').disabled = !hasParcel;
+}
+
+function setVisuraStatus(text, isError = false) {
+  const element = $('visura-status');
+  element.textContent = text;
+  element.classList.toggle('err', Boolean(isError));
+}
+
+async function onVisura(refresh = false) {
+  const token = ++visuraToken;
+  let parcel = parcelForVisura();
+  if (!parcel) {
+    setVisuraStatus('Seleziona prima una particella catastale.', true);
+    return;
+  }
+
+  // Il nome ufficiale del comune serve al servizio: se l'indice non è ancora
+  // pronto (può capitare selezionando subito una particella dal WFS), attende.
+  if (!parcel.comuneName && state.catasto) {
+    setVisuraStatus('Caricamento dell\'elenco dei comuni...');
+    try {
+      await state.catasto.init();
+    } catch (_) { /* si prova comunque con il codice */ }
+    if (token !== visuraToken) return;
+    parcel = parcelForVisura();
+  }
+  if (!parcel.comuneName) {
+    setVisuraStatus('Elenco dei comuni non disponibile: attendi qualche '
+      + 'istante e riprova.', true);
+    return;
+  }
+
+  state.visuraResult = null;
+  const out = $('out-visura');
+  out.hidden = true;
+  out.replaceChildren();
+  $('btn-visura').disabled = true;
+  setVisuraStatus('Consultazione del servizio Variazioni colturali...');
+
+  try {
+    const result = await visuraClient.lookup(parcel, { refresh });
+    if (token !== visuraToken) return;
+    state.visuraResult = result;
+
+    if (!result.found) {
+      renderVisuraNotFound(result);
+      setVisuraStatus(result.reason === 'ambiguous'
+        ? 'La ricerca ha restituito più particelle: usa i servizi ufficiali.'
+        : 'Particella non presente nell\'archivio Variazioni colturali '
+          + '(copertura parziale).');
+      return;
+    }
+
+    renderVisura(result);
+    setVisuraStatus(result.detail.rows.length > 1
+      ? `Scheda trovata: ${result.detail.rows.length} porzioni catastali.`
+      : 'Scheda trovata.');
+  } catch (exc) {
+    if (token !== visuraToken) return;
+    const message = exc instanceof VisuraError
+      ? exc.message
+      : (exc && exc.message ? exc.message : String(exc));
+    setVisuraStatus(`${message} Puoi usare i link ai servizi ufficiali qui sotto.`, true);
+    renderVisuraError(message);
+  } finally {
+    if (token === visuraToken) $('btn-visura').disabled = false;
+  }
+}
+
+function onVisuraAction(event) {
+  const button = event.target.closest('button[data-visura-action]');
+  if (!button) return;
+  const action = button.dataset.visuraAction;
+  if (action === 'copy') copyVisura();
+  else if (action === 'print') printVisura();
+  else if (action === 'refresh') onVisura(true);
+}
+
+function copyIdentifiers() {
+  const parcel = parcelForVisura();
+  if (!parcel) return;
+  const text = identifiersText(parcel);
+  let write = null;
+  try {
+    write = navigator.clipboard && navigator.clipboard.writeText(text);
+  } catch (_) { /* clipboard non disponibile */ }
+  if (!write) {
+    setVisuraStatus('Copia non disponibile in questo browser: seleziona il '
+      + 'testo manualmente.', true);
+    return;
+  }
+  write
+    .then(() => setVisuraStatus('Identificativi copiati: puoi incollarli nei '
+      + 'servizi dell\'Agenzia.'))
+    .catch(() => setVisuraStatus('Impossibile copiare: seleziona il testo '
+      + 'manualmente.', true));
+}
+
+function copyVisura() {
+  if (!state.visuraResult || !state.visuraResult.found) return;
+  const text = visuraSummaryText(state.visuraResult);
+  let write = null;
+  try {
+    write = navigator.clipboard && navigator.clipboard.writeText(text);
+  } catch (_) { /* clipboard non disponibile */ }
+  if (!write) {
+    setVisuraStatus('Copia non disponibile in questo browser: seleziona il '
+      + 'testo manualmente.', true);
+    return;
+  }
+  write
+    .then(() => setVisuraStatus('Scheda copiata negli appunti.'))
+    .catch(() => setVisuraStatus('Impossibile copiare: seleziona il testo '
+      + 'manualmente.', true));
+}
+
+function printVisura() {
+  if (!state.visuraResult || !state.visuraResult.found) return;
+  document.body.classList.add('printing-visura');
+  requestAnimationFrame(() => window.print());
+}
+
+/** Crea un elemento con attributi e testo (niente innerHTML su dati esterni). */
+function make(tag, attrs = {}, text = null) {
+  const element = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value === null || value === undefined || value === false) continue;
+    if (key === 'class') element.className = value;
+    else element.setAttribute(key, String(value));
+  }
+  if (text !== null && text !== undefined) element.textContent = String(text);
+  return element;
+}
+
+function renderVisura(result) {
+  const out = $('out-visura');
+  out.replaceChildren();
+
+  const first = result.detail.rows[0] || {};
+  const sezione = result.comune.sezione ? ` \u00b7 sezione ${result.comune.sezione}` : '';
+  const head = make('div', { class: 'visura-head' });
+  head.append(
+    make('strong', {},
+      `Comune di ${result.comune.officialName || result.comune.name} `
+      + `(${result.comune.currentProvince || result.comune.province})`),
+    make('span', {},
+      `Codice catastale ${result.comune.code}${sezione} \u00b7 `
+      + 'fonte: Variazioni colturali on line'),
+  );
+  out.append(head);
+
+  const wrap = make('div', { class: 'visura-table-wrap' });
+  const table = make('table', { class: 'visura-table' });
+  table.append(make('caption', {},
+    `Foglio ${first.foglio || ''} \u00b7 particella ${first.numero || ''}`
+    + (first.denominatore ? `/${first.denominatore}` : '')
+    + ` \u00b7 ${result.detail.rows.length} porzione/i`));
+
+  const headRow = make('tr');
+  for (const [label, numeric] of [
+    ['Porzione', false], ['Qualit\u00e0', false], ['Classe', false],
+    ['Superficie', true], ['Reddito dominicale', true],
+    ['Reddito agrario', true],
+  ]) {
+    headRow.append(make('th', {
+      scope: 'col', class: numeric ? 'num' : null,
+    }, label));
+  }
+  const thead = make('thead');
+  thead.append(headRow);
+  table.append(thead);
+
+  const tbody = make('tbody');
+  for (const row of result.detail.rows) {
+    const tr = make('tr');
+    tr.append(
+      make('td', {}, row.porzione || '\u2013'),
+      make('td', {}, row.qualita || '\u2013'),
+      make('td', {}, row.classe || '\u2013'),
+      make('td', { class: 'num' }, formatHa(row.superficieHa)),
+      make('td', { class: 'num' }, formatEuro(row.redditoDominicale)),
+      make('td', { class: 'num' }, formatEuro(row.redditoAgrario)),
+    );
+    tbody.append(tr);
+  }
+  table.append(tbody);
+
+  const totalRow = make('tr');
+  totalRow.append(
+    make('th', { scope: 'row', colspan: '3' }, 'Totale'),
+    make('td', { class: 'num' }, formatHa(result.detail.totals.superficieHa)),
+    make('td', { class: 'num' }, formatEuro(result.detail.totals.redditoDominicale)),
+    make('td', { class: 'num' }, formatEuro(result.detail.totals.redditoAgrario)),
+  );
+  const tfoot = make('tfoot');
+  tfoot.append(totalRow);
+  table.append(tfoot);
+  wrap.append(table);
+  out.append(wrap);
+
+  const actions = make('div', { class: 'visura-actions' });
+  actions.append(
+    make('button', { type: 'button', 'data-visura-action': 'copy' }, 'Copia scheda'),
+    make('button', { type: 'button', 'data-visura-action': 'print' }, 'Stampa'),
+    make('button', { type: 'button', 'data-visura-action': 'refresh' }, 'Aggiorna'),
+    make('a', {
+      href: result.sourceUrl, target: '_blank', rel: 'noopener',
+    }, 'Apri la pagina originale'),
+  );
+  out.append(actions);
+
+  out.append(make('p', { class: 'visura-note' },
+    `Consultato il ${formatDateTimeIt(result.fetchedAt)}. Dati pubblici `
+    + 'dell\'Agenzia delle Entrate. Riepilogo informativo: non sostituisce '
+    + 'la visura catastale ufficiale.'));
+
+  out.hidden = false;
+}
+
+function renderVisuraNotFound(result) {
+  const out = $('out-visura');
+  out.replaceChildren();
+  const parcel = parcelForVisura();
+  const sez = parcel && parcel.sezione ? ` sezione ${parcel.sezione}` : '';
+  const identificativo = parcel
+    ? `foglio ${parcel.foglio} \u00b7 particella ${parcel.particella}${sez}`
+    : 'selezionata';
+  const message = result.reason === 'ambiguous'
+    ? `La ricerca per la particella (${identificativo}) ha restituito più `
+      + 'risultati. Apri la ricerca originale per scegliere quello giusto.'
+    : `La particella (${identificativo}) non risulta nell'archivio `
+      + 'Variazioni colturali. La copertura del servizio è parziale: molte '
+      + 'particelle non sono presenti. Per i dati ufficiali usa la visura '
+      + 'gratuita (SPID/CIE/CNS) o la consultazione rendite (con CAPTCHA).';
+
+  out.append(make('p', { class: 'visura-empty' }, message));
+
+  const actions = make('div', { class: 'visura-actions' });
+  actions.append(
+    make('a', {
+      href: result.sourceUrl, target: '_blank', rel: 'noopener',
+    }, 'Apri la ricerca originale'),
+    make('button', {
+      type: 'button', 'data-visura-action': 'refresh',
+    }, 'Riprova'),
+  );
+  out.append(actions);
+  out.hidden = false;
+}
+
+function renderVisuraError(message) {
+  const out = $('out-visura');
+  out.replaceChildren();
+  out.append(make('p', { class: 'visura-empty' }, message));
+  const actions = make('div', { class: 'visura-actions' });
+  actions.append(make('button', {
+    type: 'button', 'data-visura-action': 'refresh',
+  }, 'Riprova'));
+  out.append(actions);
+  out.hidden = false;
+}
+
+// --------------------------------------------------------------------------
 // Aggancio di diagnostica: consente di ispezionare lo stato dalla console del
 // browser e di pilotare l'app da script (usato anche dai test automatici).
 //     mappaApp.map.getZoom(), mappaApp.state.field, mappaApp.layers.view
@@ -756,6 +1090,7 @@ window.mappaApp = {
   get state() { return state; },
   get layers() { return { field: fieldLayer, view: viewLayer }; },
   get wfs() { return wfs; },
+  get visura() { return visuraClient; },
   CONFIG,
 };
 

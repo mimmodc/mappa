@@ -142,7 +142,7 @@ export default {
       upstream = await fetch(targetUrl.toString(), {
         method: request.method,
         headers: {
-          'User-Agent': 'mappa-campi-agricoli/2.0 (+https://github.com/)',
+          'User-Agent': 'mappa-campi-agricoli/2.1 (+https://github.com/)',
           Accept: 'application/xml,text/xml,*/*',
         },
         cf: { cacheTtl: 300, cacheEverything: true },

@@ -9,7 +9,7 @@
 // ==========================================================================
 
 export const CONFIG = {
-  version: '2.0-web',
+  version: '2.1-web',
 
   // --- Servizi dati -------------------------------------------------------
   // Indice comune/foglio/particella -> coordinate (OnData, CC-BY 4.0, CORS ok)
@@ -27,6 +27,23 @@ export const CONFIG = {
   // Predefinito: Worker Cloudflare del progetto (piano gratuito).
   // Se e' vuoto, le richieste vengono fatte direttamente (utile solo per test).
   wfsProxy: 'https://mappa-proxy.mimmodc.workers.dev/?url={url}',
+
+  // --- Scheda catastale dei terreni ---------------------------------------
+  // "Variazioni colturali on line" dell'Agenzia delle Entrate: servizio
+  // pubblico, senza login, con CORS aperto. Restituisce qualità di coltura,
+  // classe, superficie e redditi delle particelle del catasto terreni.
+  // La copertura NON è completa: va presentata come riepilogo informativo,
+  // non come visura ufficiale.
+  visura: {
+    baseUrl: 'https://www1.agenziaentrate.gov.it/servizi/VariazioniColturali/',
+    officialVisuraUrl: 'https://www.agenziaentrate.gov.it/portale/schede/'
+      + 'fabbricatiterreni/visura-catastale/visura-catastale-online',
+    officialRenditeUrl: 'https://www.agenziaentrate.gov.it/portale/schede/'
+      + 'fabbricatiterreni/visura-catastale/consultazione-rendite-catastali',
+    officialLoginUrl: 'https://iampe.agenziaentrate.gov.it/sam/UI/Login'
+      + '?realm=/agenziaentrate',
+    timeoutMs: 15000,
+  },
 
   // --- Overlay delle particelle ------------------------------------------
   parcelViewMinZoom: 16,       // zoom minimo per aggiornare il gruppo "vista"

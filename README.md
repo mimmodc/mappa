@@ -27,6 +27,11 @@ GitHub Pages: **<https://mimmodc.github.io/mappa/>**
    quelle della **vista corrente** (a zoom sufficientemente elevato).
 6. **Calcolo di area, perimetro e centroide** (geodetici) ed **esportazione in
    GeoJSON** del campo selezionato o disegnato.
+7. **Scheda catastale dei terreni** — con una particella selezionata, un clic
+   mostra **qualità di coltura, classe, superficie e redditi** dominicale e
+   agrario, letti dal servizio pubblico *Variazioni colturali on line*
+   dell'Agenzia delle Entrate. La copertura è parziale; i link alla visura
+   ufficiale gratuita sono sempre disponibili.
 
 ## Pubblicazione su GitHub Pages
 
@@ -92,6 +97,38 @@ Per pubblicare un proxy proprio — su un altro account Cloudflare, o con Deno
 Deploy/Vercel/Netlify — tutto il necessario è in
 **[`proxy/README.md`](proxy/README.md)**.
 
+## Scheda catastale dei terreni (gratuita)
+
+Con una particella catastale selezionata (dalla mappa o dalla ricerca), la
+sezione **5 — Scheda catastale dei terreni** interroga il servizio pubblico
+[Agenzia delle Entrate — Variazioni colturali on line](https://www1.agenziaentrate.gov.it/servizi/VariazioniColturali/motore.php).
+Il servizio non richiede login, restituisce HTML con CORS aperto e fornisce,
+per ogni porzione della particella:
+
+- qualità di coltura e classe;
+- ettari, are e centiare (superficie);
+- reddito dominicale e reddito agrario.
+
+L'app somma le porzioni, mostra il totale e permette di copiare o stampare il
+riepilogo. Le richieste partono **solo quando si preme il pulsante**, non
+vengono inviati cookie e i risultati restano in memoria per la durata della
+pagina.
+
+### Limiti importanti
+
+- **Non è una visura catastale ufficiale.** È un riepilogo informativo.
+- **La copertura è parziale**: il servizio non contiene tutte le particelle del
+  catasto terreni. Se la particella non c'è, l'app lo dice chiaramente e
+  propone i servizi ufficiali.
+- **Trento e Bolzano** non sono presenti nell'elenco delle province del
+  servizio (catasto tavolare): per queste province la scheda non è disponibile.
+- La visura ufficiale è **gratuita dal 1° gennaio 2025** (Dlgs 139/2024) e ha
+  valore legale; richiede **SPID, CIE o CNS**. Link diretto:
+  [Visura catastale online](https://www.agenziaentrate.gov.it/portale/schede/fabbricatiterreni/visura-catastale/visura-catastale-online).
+- In alternativa, la
+  [Consultazione rendite catastali](https://www.agenziaentrate.gov.it/portale/schede/fabbricatiterreni/visura-catastale/consultazione-rendite-catastali)
+  è gratuita, non richiede SPID ma è protetta da CAPTCHA e va usata manualmente.
+
 ## Avvio in locale (senza pubblicare)
 
 ```bash
@@ -131,6 +168,7 @@ basta aprire <http://localhost:8123/>.
 |---|---|---|
 | Particelle catastali (poligoni) | [Agenzia delle Entrate — WFS INSPIRE](https://wfs.cartografia.agenziaentrate.gov.it/inspire/wfs/owfs01.php) | CC-BY 4.0 |
 | Indice comune/foglio/particella → coordinate | [OnData — dati_catastali](https://github.com/ondata/dati_catastali) | CC-BY 4.0 |
+| Qualità, classe, superficie e redditi dei terreni | [Agenzia delle Entrate — Variazioni colturali on line](https://www1.agenziaentrate.gov.it/servizi/VariazioniColturali/motore.php) | dati pubblici (uso informativo) |
 | Sfondo mappa | OpenStreetMap contributors / OpenTopoMap / Esri | varie (aperte) |
 
 Le attribuzioni sono riportate anche nella barra in basso della pagina.
@@ -168,6 +206,10 @@ Le attribuzioni sono riportate anche nella barra in basso della pagina.
 - **Nessun dato personale**: l'app gira interamente nel browser e non raccoglie
   né invia dati dell'utente; l'unica informazione scambiata sono le coordinate
   delle aree richieste ai servizi pubblici (Catasto, OnData) e i tile di mappa.
+- **Scheda colturale su richiesta**: la pagina *Variazioni colturali* viene
+  interrogata solo quando si preme il pulsante, verso
+  `www1.agenziaentrate.gov.it`, senza cookie (`credentials: omit`) e senza
+  conservare i risultati su disco.
 - **Integrità degli script (SRI)**: Leaflet (CSS e JS) e GeographicLib sono
   caricati dal CDN con hash `integrity` (SHA-384): se il contenuto servito non
   corrisponde all'hash atteso, il browser lo **rifiuta**. DuckDB-WASM è
@@ -194,14 +236,16 @@ web/                      # versione web: stili e moduli JavaScript
   gml.js                  #   parsing identificativi e risposte GML del WFS
   wfs.js                  #   client WFS con supporto proxy CORS
   catasto.js              #   ricerca per attributi (DuckDB-WASM)
+  visura.js               #   scheda colturale (Variazioni colturali on line)
+  comuni-province.js      #   comune catastale -> provincia (file generato)
   app.js                  #   logica dell'interfaccia
 proxy/
   cloudflare-worker.js    #   proxy CORS per GitHub Pages (Cloudflare Worker)
   local-proxy.mjs         #   proxy CORS locale, per le prove
   README.md               #   guida all'attivazione del proxy
 tests/
-  all.test.mjs            #   test di geometria, parsing GML, client WFS
-  fixtures/               #   risposta WFS di esempio
+  all.test.mjs            #   test di geometria, parsing GML/WFS/visura
+  fixtures/               #   risposte WFS e pagine visura di esempio
 README.md                 # questo file
 CHANGELOG.md              # cronologia delle versioni
 .gitignore                # file esclusi dal versionamento
@@ -210,7 +254,7 @@ doc/                      # immagini usate nella documentazione
 
 ## Versione
 
-Versione corrente: **2.0** (mostrata anche nel titolo della pagina).
+Versione corrente: **2.1** (mostrata anche nel titolo della pagina).
 La cronologia completa delle modifiche è in [CHANGELOG.md](CHANGELOG.md).
 
 ## Verifica rapida
@@ -232,8 +276,9 @@ node tests/all.test.mjs
 ```
 
 I test della versione web verificano il calcolo geodetico, il parsing delle
-risposte GML e il client WFS (con la risposta reale del WFS come campione in
-`tests/fixtures/`).
+risposte GML e WFS, la scheda colturale (ricerca, dettaglio, porzioni, totali,
+abbinamento del comune e province storiche) e il Worker proxy, usando risposte
+reali come campioni in `tests/fixtures/`.
 
 ## Licenza
 

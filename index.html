@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mappa Campi Agricoli v2.0 &mdash; Catasto + OpenStreetMap</title>
+<title>Mappa Campi Agricoli v2.1 &mdash; Catasto + OpenStreetMap</title>
 <meta name="description" content="Mappa web per individuare e misurare i campi agricoli usando il catasto italiano (Agenzia delle Entrate) e OpenStreetMap.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>&#127806;</text></svg>">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
@@ -17,7 +17,7 @@
   <div class="brand">
     <span class="logo">&#127806;</span>
     <div>
-      <h1>Mappa Campi Agricoli <span class="ver">v2.0</span></h1>
+      <h1>Mappa Campi Agricoli <span class="ver">v2.1</span></h1>
       <p>Individua e misura i campi sul catasto italiano, con mappa OpenStreetMap</p>
     </div>
   </div>
@@ -105,6 +105,45 @@
       </div>
     </section>
 
+    <section class="card" id="card-visura">
+      <h2><span class="n">5</span> Scheda catastale dei terreni</h2>
+      <p class="hint visura-help">
+        Qualit&agrave; di coltura, classe, superficie e redditi della particella
+        selezionata, letti dal servizio pubblico
+        <b>Variazioni colturali on line</b> dell'Agenzia delle Entrate.
+        La copertura &egrave; <b>parziale</b>: non tutte le particelle sono
+        presenti. Non &egrave; una visura ufficiale.
+      </p>
+      <p id="visura-ident" class="visura-ident">
+        Seleziona una particella catastale dalla mappa o dalla ricerca.
+      </p>
+      <div class="row">
+        <button id="btn-visura" class="primary" type="button" disabled>
+          Mostra la scheda
+        </button>
+        <button id="btn-copia-ident" type="button" disabled>
+          Copia identificativi
+        </button>
+      </div>
+      <p id="visura-status" class="hint" role="status" aria-live="polite"></p>
+      <div id="out-visura" class="visura" hidden></div>
+      <div class="visura-links">
+        <a id="link-visura-ufficiale" target="_blank" rel="noopener"
+           href="https://www.agenziaentrate.gov.it/portale/schede/fabbricatiterreni/visura-catastale/visura-catastale-online">
+          Visura ufficiale gratuita (SPID/CIE/CNS)
+        </a>
+        <a id="link-rendite" target="_blank" rel="noopener"
+           href="https://www.agenziaentrate.gov.it/portale/schede/fabbricatiterreni/visura-catastale/consultazione-rendite-catastali">
+          Consultazione rendite catastali (senza SPID, con CAPTCHA)
+        </a>
+      </div>
+      <p class="hint visura-help">
+        La visura ufficiale &egrave; gratuita dal 1&deg; gennaio 2025 e ha valore
+        legale; richiede SPID, CIE o CNS. Il riepilogo qui sopra serve solo a
+        capire subito qualit&agrave; e redditi del campo.
+      </p>
+    </section>
+
   </aside>
 
   <div id="panel-resizer" class="panel-resizer" role="separator"
@@ -137,6 +176,12 @@
       <li>Area, perimetro e centroide sono calcolati sull'ellissoide WGS84
           (stesso algoritmo dell'app desktop) e puoi esportare il campo come
           <b>GeoJSON</b>.</li>
+      <li>Con una particella catastale selezionata, la sezione
+          <b>Scheda catastale dei terreni</b> mostra qualit&agrave; di coltura,
+          classe, superficie e redditi letti dal servizio pubblico
+          <i>Variazioni colturali on line</i>. Se la particella non &egrave;
+          presente, i link in fondo aprono i servizi gratuiti dell'Agenzia
+          delle Entrate (visura ufficiale con SPID/CIE/CNS).</li>
       <li>Il pannello a sinistra si pu&ograve; <b>ridimensionare</b> trascinando
           il suo bordo destro (doppio clic per tornare alla larghezza
           predefinita). Il pulsante &#9776; in alto a sinistra lo mostra o lo
@@ -147,6 +192,10 @@
       <li>Mappa: OpenStreetMap e altri sfondi (Esri, OpenTopoMap, HOT).</li>
       <li>Confini catastali: Agenzia delle Entrate (WFS, CC-BY 4.0).</li>
       <li>Ricerca particelle: indice OnData (CC-BY 4.0).</li>
+      <li>Scheda colturale: Agenzia delle Entrate, servizio pubblico
+          <i>Variazioni colturali on line</i> (copertura parziale).</li>
+      <li>Visura ufficiale: Agenzia delle Entrate, gratuita con
+          SPID/CIE/CNS.</li>
     </ul>
   </div>
 </div>
